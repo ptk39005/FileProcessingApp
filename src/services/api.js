@@ -2,11 +2,12 @@ import axios from 'axios';
 
 // Create an Axios instance with base URL and common configurations
 const API = axios.create({
-    baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
+   baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
+  // baseURL : "http://127.0.0.1:5000",
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true,
+   // withCredentials: true,
 });
 
 // Add a request interceptor to include token and email in the headers
