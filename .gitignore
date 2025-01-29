@@ -1,3 +1,8 @@
 # Ignore node_modules
 node_modules/
 node_modules/
+
+# amplify
+.amplify
+amplify_outputs*
+amplifyconfiguration*
