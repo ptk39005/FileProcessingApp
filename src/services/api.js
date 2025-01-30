@@ -3,8 +3,8 @@ import { storage } from "./firebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // Create an Axios instance with base URL and common configurations
 const API = axios.create({
-   baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
-  //baseURL : "http://127.0.0.1:5000",
+   //baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
+  baseURL : "http://127.0.0.1:5000",
     headers: {
         'Content-Type': 'application/json',
     },
