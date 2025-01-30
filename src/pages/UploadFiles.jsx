@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Container,
   Typography,
@@ -14,14 +14,60 @@ import {
 } from "@mui/material";
 import { CloudUpload as CloudUploadIcon } from "@mui/icons-material";
 import { useDropzone } from "react-dropzone";
-import { uploadFiles } from "../services/api";
+import axios from "axios";
 import NavigationBar from "../components/NavigationBar";
+import { uploadFileToFirebase, notifyBackendAfterUpload } from "../services/api";
 
 const FileUploadFlow = () => {
   const [fileDetails, setFileDetails] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
+  const email = localStorage.getItem('email');
+
+  const handleUpload = async () => {
+    const email = localStorage.getItem("email"); // Get user email
+    if (!email) {
+        setNotifications([{ type: "error", text: "User email not found. Please log in." }]);
+        return;
+    }
+
+    const finalizedFiles = fileDetails.filter((file) => file.finalized);
+    if (finalizedFiles.length === 0) {
+        setNotifications([{ type: "error", text: "Please finalize at least one file for upload." }]);
+        return;
+    }
+
+    setIsLoading(true);
+    const uploadedFiles = {}; // Object to store files with keys
+
+    try {
+        for (const fileDetail of finalizedFiles) {
+            const { file } = fileDetail;
+
+            // Step 1: Upload file to Firebase Storage
+            const { fileName, fileUrl } = await uploadFileToFirebase(file);
+            console.log(`File uploaded: ${fileName}, URL: ${fileUrl}`);
+
+            // Store in an object using fileName as the key
+            uploadedFiles[fileName] = { fileName, fileUrl };
+        }
+
+        console.log("✅ All Files Uploaded. Final Payload:", uploadedFiles);
+
+        // Step 2: Notify backend after all uploads
+        await notifyBackendAfterUpload(uploadedFiles, email);
+        setNotifications([{ type: "success", text: "Files uploaded & processing started successfully!" }]);
+
+    } catch (error) {
+        console.error("🚨 Upload error:", error);
+        setNotifications([{ type: "error", text: error.message || "Error uploading files." }]);
+    } finally {
+        setIsLoading(false);
+    }
+};
+
+  // Handle File Selection
   const handleDrop = (acceptedFiles) => {
     const newFiles = acceptedFiles.map((file) => ({
       file,
@@ -31,6 +77,7 @@ const FileUploadFlow = () => {
     setFileDetails((prev) => [...prev, ...newFiles]);
   };
 
+  // Update File Name
   const handleFileNameChange = (index, newName) => {
     setFileDetails((prev) =>
       prev.map((fileDetail, i) =>
@@ -39,6 +86,7 @@ const FileUploadFlow = () => {
     );
   };
 
+  // Toggle File Finalization
   const handleFileFinalization = (index, finalized) => {
     setFileDetails((prev) =>
       prev.map((fileDetail, i) =>
@@ -47,41 +95,52 @@ const FileUploadFlow = () => {
     );
   };
 
-  const handleUpload = async () => {
-    const finalizedFiles = fileDetails.filter((file) => file.finalized);
-
-    if (finalizedFiles.length === 0) {
-      setNotifications([
-        { type: "error", text: "Please finalize at least one file for upload." },
-      ]);
-      return;
-    }
-
-    setIsLoading(true);
-
-    const formData = new FormData();
-    finalizedFiles.forEach((fileDetail) => {
-      formData.append("files", fileDetail.file, fileDetail.name); // Use renamed file names
-    });
-
+  // Upload Large File in 5MB Chunks
+  const uploadLargeFile = async (file, name) => {
     try {
-      const response = await uploadFiles(formData);
-      if (response.success) {
-        setNotifications([
-          { type: "success", text: "Files uploaded successfully!" },
-        ]);
-        setFileDetails([]);
-      } else {
-        setNotifications([
-          { type: "error", text: "Error uploading files. Please try again." },
-        ]);
+      // Step 1: Request a Resumable Upload URL from Flask API
+      const { data } = await axios.post("/api/gcs_resumable_url", {
+        fileName: name,
+        fileType: file.type,
+      });
+
+      if (!data.uploadUrl) {
+        throw new Error("Failed to get resumable upload URL");
       }
+
+      const uploadUrl = data.uploadUrl;
+      const chunkSize = 5 * 1024 * 1024; // 5MB chunk size
+      let start = 0;
+
+      while (start < file.size) {
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        // Step 2: Upload the Chunk
+        const response = await fetch(uploadUrl, {
+          method: "PUT",
+          body: chunk,
+          headers: {
+            "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
+            "Content-Type": file.type,
+          },
+        });
+
+        if (!response.ok && response.status !== 308) {
+          throw new Error(`Upload failed for ${name}`);
+        }
+
+        start = end;
+        console.log(`Uploaded ${Math.round((start / file.size) * 100)}% of ${name}`);
+      }
+
+      setNotifications([{ type: "success", text: `File ${name} uploaded successfully!` }]);
     } catch (error) {
+      console.error("Upload error:", error);
       setNotifications([{ type: "error", text: "Error uploading files." }]);
-    } finally {
-      setIsLoading(false);
     }
   };
+
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleDrop,
@@ -92,15 +151,17 @@ const FileUploadFlow = () => {
     <NavigationBar>
       <Container maxWidth="lg" sx={{ padding: 4 }}>
         <Typography variant="h4" gutterBottom sx={{ textAlign: "center", mb: 4 }}>
-          Enhanced File Upload Flow
+          Google Cloud Storage File Upload
         </Typography>
 
+        {/* Notifications */}
         {notifications.map((notification, index) => (
           <Alert key={index} severity={notification.type} sx={{ marginBottom: 2 }}>
             {notification.text}
           </Alert>
         ))}
 
+        {/* Drag & Drop File Upload UI */}
         <Paper
           {...getRootProps()}
           elevation={3}
@@ -137,6 +198,7 @@ const FileUploadFlow = () => {
           )}
         </Paper>
 
+        {/* File List & Finalization */}
         {fileDetails.length > 0 && (
           <Box mt={4}>
             <Typography variant="h6" sx={{ mb: 2 }}>
@@ -166,9 +228,7 @@ const FileUploadFlow = () => {
                       control={
                         <Checkbox
                           checked={fileDetail.finalized}
-                          onChange={(e) =>
-                            handleFileFinalization(index, e.target.checked)
-                          }
+                          onChange={(e) => handleFileFinalization(index, e.target.checked)}
                         />
                       }
                       label="Finalize"
@@ -177,6 +237,8 @@ const FileUploadFlow = () => {
                 </Grid>
               ))}
             </Grid>
+
+            {/* Upload Button */}
             <Box textAlign="center" mt={4}>
               <Button
                 variant="contained"
@@ -185,12 +247,13 @@ const FileUploadFlow = () => {
                 disabled={isLoading}
                 sx={{ px: 4, py: 1.5 }}
               >
-                Upload Finalized Files
+                Upload to Google Cloud Storage
               </Button>
             </Box>
           </Box>
         )}
 
+        {/* Loading Indicator */}
         {isLoading && <LinearProgress sx={{ marginTop: 2 }} />}
       </Container>
     </NavigationBar>

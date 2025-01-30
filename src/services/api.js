@@ -1,9 +1,10 @@
 import axios from 'axios';
-
+import { storage } from "./firebaseConfig";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // Create an Axios instance with base URL and common configurations
 const API = axios.create({
-   baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
-  // baseURL : "http://127.0.0.1:5000",
+   //baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
+  baseURL : "http://127.0.0.1:5000",
     headers: {
         'Content-Type': 'application/json',
     },
@@ -113,6 +114,66 @@ export const uploadFiles = async (formData) => {
     } catch (error) {
         handleApiError(error, 'File Upload');
     }
+};
+
+/**
+ * Upload file to Firebase Storage and return file name & download URL
+ * @param {File} file - The file object to be uploaded
+ * @returns {Object} { fileName, fileUrl }
+ */
+export const uploadFileToFirebase = async (file) => {
+  try {
+      if (!(file instanceof File)) {
+          console.error("🚨 Invalid file type:", file);
+          throw new Error("Invalid file provided for upload.");
+      }
+
+      // Get user email from local storage
+      const email = localStorage.getItem('email');
+      if (!email) throw new Error("User email not found in local storage");
+
+      // Define the storage path
+      const filePath = `${email}/uploaded_files/${file.name}`;
+      const storageRef = ref(storage, filePath);
+
+      // Upload file to Firebase Storage
+      await uploadBytes(storageRef, file);
+
+      // Get file URL after upload
+      const fileUrl = await getDownloadURL(storageRef);
+
+      // Return both file name (for backend) and file URL (for access)
+      return { fileName: file.name, fileUrl };
+  } catch (error) {
+      console.error("🚨 Upload Error:", error);
+      throw new Error("Failed to upload file to Firebase Storage");
+  }
+};
+
+
+/**
+ * Notify backend after file uploads to trigger metadata extraction
+ * @param {Array} uploadedFiles - Array of objects containing { fileName, fileUrl }
+ * @param {string} email - The user's email
+ * @returns {Object} Response from the backend
+ */
+export const notifyBackendAfterUpload = async (uploadedFiles, email) => {
+  try {
+    console.log(uploadFiles);
+    console.log(email);
+    const response = await API.post(
+      "/api/process_uploaded_files",
+      { uploadedFiles, email },
+      { headers: { "Content-Type": "application/json" } } // Ensure JSON is sent
+  );
+  if (!response || response.status !== 200) {
+    throw new Error(`Backend responded with status ${response.status}`);
+}
+      //return response.data;
+  } catch (error) {
+      console.error("Backend Notification Error:", error);
+      throw new Error("Failed to notify backend after upload");
+  }
 };
 
 /**

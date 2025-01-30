@@ -10,6 +10,7 @@
     "axios": "^1.7.9",
     "babel-install": "^2.1.0",
     "cra-template": "1.2.0",
+    "firebase": "^11.2.0",
     "notistack": "^3.0.2",
     "react": "^19.0.0",
     "react-calendar": "^5.1.0",
