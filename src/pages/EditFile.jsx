@@ -143,6 +143,13 @@ const EditFile = () => {
 
       if (response.fileType === "Excel" && response.sheets) {
         setFileDetails(response);
+        // Initialize column types from the API response
+        const initialColumnTypes = {};
+        Object.entries(response.sheets).forEach(([sheetName, sheetData]) => {
+          initialColumnTypes[sheetName] = sheetData.columnTypes || {};
+        });
+        setColumnTypes(initialColumnTypes);
+
         const initialSelections = Object.keys(response.sheets).reduce((acc, sheetName) => {
           acc[sheetName] = {
             selected: true,
@@ -154,7 +161,16 @@ const EditFile = () => {
       } else if (response.fileType === "CSV" && response.columns) {
         setFileDetails({
           ...response,
-          sheets: { CSV: { columns: response.columns, columnTypes: response.columnTypes || {} } },
+          sheets: { 
+            CSV: { 
+              columns: response.columns, 
+              columnTypes: response.columnTypes || {} 
+            } 
+          },
+        });
+        // Initialize column types for CSV
+        setColumnTypes({
+          CSV: response.columnTypes || {}
         });
         setSelectedSheets({
           CSV: {
@@ -167,7 +183,7 @@ const EditFile = () => {
       }
 
       // Automatically set the default new filename
-      const baseFileName = file.fileName.replace(/\.[^/.]+$/, ""); // Remove the extension
+      const baseFileName = file.fileName.replace(/\.[^/.]+$/, "");
       const fileExtension = file.fileName.split(".").pop();
       setNewFileName(`${baseFileName}_EditedFile.${fileExtension}`);
       setEditDialogOpen(true);

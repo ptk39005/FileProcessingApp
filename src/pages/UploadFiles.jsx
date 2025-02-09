@@ -151,7 +151,7 @@ const FileUploadFlow = () => {
     <NavigationBar>
       <Container maxWidth="lg" sx={{ padding: 4 }}>
         <Typography variant="h4" gutterBottom sx={{ textAlign: "center", mb: 4 }}>
-          Google Cloud Storage File Upload
+          File Upload
         </Typography>
 
         {/* Notifications */}
@@ -247,7 +247,7 @@ const FileUploadFlow = () => {
                 disabled={isLoading}
                 sx={{ px: 4, py: 1.5 }}
               >
-                Upload to Google Cloud Storage
+                Upload selected files
               </Button>
             </Box>
           </Box>

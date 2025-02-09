@@ -49,6 +49,7 @@ const MergeFiles = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [verticalSheets, setVerticalSheets] = useState({ sheet1: "", sheet2: "" });
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAllFiles, setShowAllFiles] = useState(false);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -292,8 +293,8 @@ const resetConfiguration = () => {
     }
   };
 
-  
-  
+  // Add this function to handle showing more/less files
+  const displayedFiles = showAllFiles ? files : files.slice(0, 5);
 
   return (
     <NavigationBar>
@@ -356,49 +357,64 @@ const resetConfiguration = () => {
   
         {/* File List */}
         <List>
-          {files.map((file, index) => (
-            <React.Fragment key={file.fileName || `file-${index}`}>
-              <ListItem
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Checkbox
-                    checked={selectedFiles.some(
-                      (selectedFile) => selectedFile.fileName === file.fileName
-                    )}
-                    onChange={() => handleFileSelection(file)}
-                  />
-                  <Tooltip title={file.fileName} arrow>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: "300px",
-                      }}
-                    >
-                      {file.fileName}
-                    </Typography>
-                  </Tooltip>
-                </Box>
-                <Button
-                  variant="outlined"
-                  href={file.downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+          {displayedFiles
+            .filter(file => file.fileName.toLowerCase().includes(searchQuery.toLowerCase()))
+            .map((file, index) => (
+              <React.Fragment key={file.fileName || `file-${index}`}>
+                <ListItem
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                 >
-                  Download
-                </Button>
-              </ListItem>
-              <Divider />
-            </React.Fragment>
-          ))}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Checkbox
+                      checked={selectedFiles.some(
+                        (selectedFile) => selectedFile.fileName === file.fileName
+                      )}
+                      onChange={() => handleFileSelection(file)}
+                    />
+                    <Tooltip title={file.fileName} arrow>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: "300px",
+                        }}
+                      >
+                        {file.fileName}
+                      </Typography>
+                    </Tooltip>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    href={file.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Download
+                  </Button>
+                </ListItem>
+                <Divider />
+              </React.Fragment>
+            ))}
         </List>
+
+        {/* Show More/Less Button */}
+        {files.length > 5 && (
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Button
+              onClick={() => setShowAllFiles(!showAllFiles)}
+              variant="text"
+              color="primary"
+            >
+              {showAllFiles ? 'Show Less' : `Show More (${files.length - 5} more)`}
+            </Button>
+          </Box>
+        )}
       </Paper>
   
       {/* Merge Type Selection */}

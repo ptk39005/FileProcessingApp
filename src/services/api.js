@@ -3,8 +3,8 @@ import { storage } from "./firebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // Create an Axios instance with base URL and common configurations
 const API = axios.create({
-   baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
-  //baseURL : "http://127.0.0.1:5000",
+   //baseURL: 'https://311fileapp-env.eba-mpp8g4cr.ap-south-1.elasticbeanstalk.com/',
+  baseURL : "http://127.0.0.1:5000",
     headers: {
         'Content-Type': 'application/json',
     },
@@ -376,29 +376,29 @@ export const getFileDetails = async (fileName) => {
       console.error('Error fetching file details:', error);
       throw error;
     }
-  };
+};
   
-  export const saveUpdatedFile = async (payload) => {
+export const saveUpdatedFile = async (payload) => {
     try {
-      const email = localStorage.getItem('email');
-      if (!email) {
-        throw new Error('Email not found in local storage.');
-      }
-  
-      const response = await API.post('/api/edit-file/process', payload, {
-        headers: {
-          'X-User-Email': email, // Send email in headers
-        },
-      });
-  
-      return response.data;
+        const email = localStorage.getItem('email');
+        if (!email) {
+            throw new Error('Email not found in local storage.');
+        }
+    
+        const response = await API.post('/api/edit-file/process', payload, {
+            headers: {
+                'X-User-Email': email, // Send email in headers
+            },
+        });
+    
+        return response.data;
     } catch (error) {
-      console.error('Error saving the updated file:', error);
-      throw error;
+        console.error('Error saving the updated file:', error);
+        throw error;
     }
-  };
+};
   
-  /**
+/**
  * Fetch User Profile API
  * @returns {Object} Response data containing user profile information
  */
@@ -742,3 +742,254 @@ export const generateEditFilePreview = async (payload) => {
     throw error;
   }
 };
+
+/**
+ * Submit column operations for processing
+ * @param {string} fileName - Name of the file
+ * @param {string} sheet - Sheet name
+ * @param {Array} operations - Array of operation configurations
+ * @param {string} format - Output format (xlsx/csv)
+ * @returns {Promise} - Response data with processing results
+ */
+export const submitColumnOperations = async (fileName, sheet, operations, format = 'xlsx') => {
+  const email = localStorage.getItem('email');
+  if (!email) {
+      throw new Error('Email not found in local storage.');
+  }
+
+  try {
+      const response = await API.post('/api/add_column/apply', {
+          fileName,
+          sheet,
+          operations,
+          format
+      }, {
+          headers: {
+              'X-User-Email': email,
+              'Accept': 'application/json',
+          },
+      });
+      return response.data;
+  } catch (error) {
+      console.error('Error submitting column operations:', error);
+      throw handleApiError(error);
+  }
+};
+/**
+ * Preview multiple column operations
+ * @param {string} fileName - Name of the file
+ * @param {string} sheet - Sheet name
+ * @param {Array} operations - Array of operation configurations
+ * @returns {Promise} - Preview data
+ */
+export const previewColumnOperations = async (fileName, sheet, operations) => {
+  try {
+      const response = await API.post('/api/add_column/preview', {
+          fileName,
+          sheet,
+          operations
+      });
+      return response.data;
+  } catch (error) {
+      throw handleApiError(error);
+  }
+};
+
+/**
+* Apply multiple column operations and save result
+* @param {string} fileName - Name of the file
+* @param {string} sheet - Sheet name
+* @param {Array} operations - Array of operation configurations
+* @param {string} format - Output format (xlsx/csv)
+* @returns {Promise} - Download URL and filename
+*/
+export const applyColumnOperations = async (fileName, sheet, operations, format = 'xlsx') => {
+  try {
+      const response = await API.post('/api/add_column/apply', {
+          fileName,
+          sheet,
+          operations,
+          format
+      });
+      return response.data;
+  } catch (error) {
+      throw handleApiError(error);
+  }
+};
+/**
+ * Preview formatting changes
+ * @param {string} fileName - Name of the file
+ * @param {string} sheet - Sheet name
+ * @param {Object} formattingConfig - Formatting configuration
+ * @returns {Promise} - Preview data
+ */
+export const previewFormatting = async (fileName, sheet, formattingConfig) => {
+  const email = localStorage.getItem('email');
+  if (!email) {
+      throw new Error('Email not found in local storage.');
+  }
+
+  try {
+      const response = await API.post('/api/formatting/preview', {
+          fileName,
+          sheet,
+          formattingConfig
+      }, {
+          headers: {
+              'X-User-Email': email,
+              'Accept': 'application/json',
+          },
+      });
+      return response.data;
+  } catch (error) {
+      console.error('Preview formatting error:', error);
+      throw error;
+  }
+};
+
+/**
+* Apply formatting changes and save result
+* @param {string} fileName - Name of the file
+* @param {string} sheet - Sheet name
+* @param {Object} formattingConfig - Formatting configuration
+* @returns {Promise} - Download URL and filename
+*/
+export const applyFormatting = async (fileName, sheet, formattingConfig) => {
+  const email = localStorage.getItem('email');
+  if (!email) {
+      throw new Error('Email not found in local storage.');
+  }
+
+  try {
+      const response = await API.post('/api/formatting/apply', {
+          fileName,
+          sheet,
+          formattingConfig
+      }, {
+          headers: {
+              'X-User-Email': email,
+              'Accept': 'application/json',
+          },
+      });
+      return response.data;
+  } catch (error) {
+      console.error('Apply formatting error:', error);
+      throw error;
+  }
+};
+
+
+// Visualization endpoints
+export const previewVisualization = async (data, userEmail) => {
+    try {
+        const response = await API.post('/api/visualization/preview', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Email': userEmail
+            }
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.error || 'Failed to generate preview');
+    }
+};
+
+export const saveVisualization = async (data) => {
+  try {
+      const response = await API.post('/api/visualization/save', {
+          fileName: data.fileName,
+          visualizationConfig: {
+              type: data.visualizationType,
+              title: data.chartTitle,
+              xAxis: data.xAxis,
+              series: data.series,
+              barType: data.barType,
+              labels: data.labels,
+              values: data.values,
+              chartType: data.chartType,
+              largestItems: data.largestItems,
+              colorTheme: data.colorTheme
+          }
+      });
+      return response.data;
+  } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to save visualization');
+  }
+};
+
+export const loadVisualization = async (fileName) => {
+  try {
+      const response = await API.get('/api/visualization/load', {
+          params: { fileName }
+      });
+      return response.data;
+  } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to load visualization');
+  }
+};
+
+export const reconcileFiles = async (reconcileData) => {
+  try {
+    const response = await API.post('/api/merge_files/reconcile', reconcileData, {
+      headers: {
+        'X-User-Email': localStorage.getItem('email'),
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
+export const getFileColumns = async () => {
+  try {
+    const response = await API.get('/api/operations/columns');
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const performFileOperations = async (config) => {
+  try {
+    const response = await API.post('/api/operations/operations', config);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const previewFileOperations = async (config) => {
+  try {
+    const response = await API.post('/api/operations/preview', config);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const deleteFile = async (fileName, folder) => {
+  const email = localStorage.getItem('email');
+  if (!email) {
+    throw new Error('Email not found in local storage');
+  }
+
+  try {
+    const response = await API.delete('/api/list-files/delete', {
+      data: {
+        fileName,
+        folder,
+      },
+      headers: {
+        'X-User-Email': email,
+        'Content-Type': 'application/json'
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    throw error;
+  }
+}; 

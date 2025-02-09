@@ -9,7 +9,6 @@ import {
   MenuItem,
   Drawer,
   List,
-  ListItem,
   ListItemIcon,
   ListItemText,
   CssBaseline,
@@ -24,73 +23,81 @@ import {
   CloudUpload as UploadIcon,
   MergeType as MergeTypeIcon,
   QueryStats as QueryStatsIcon,
+  Add,
+  FilterList,
+  FormatPaint,
 } from "@mui/icons-material";
 import EditIcon from "@mui/icons-material/Edit";
 import PivotTableChartIcon from "@mui/icons-material/TableChart";
-import { useNavigate, useLocation } from "react-router-dom";
-import { logout as apiLogout } from "../services/api"; // Import the logout API function
+import { logout as apiLogout } from "../services/api";
 import { useSnackbar } from "notistack";
-
+import BarChartIcon from '@mui/icons-material/BarChart';
+import FileOperationsIcon from '@mui/icons-material/FindReplace';
 const drawerWidth = 240;
 
 const NavigationBar = ({ children }) => {
-  const navigate = useNavigate();
-  const location = useLocation(); // Get the current route
   const [anchorEl, setAnchorEl] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { enqueueSnackbar } = useSnackbar();
 
   const addNotification = useCallback(
-          (type, text) => {
-              enqueueSnackbar(text, { variant: type });
-          },
-          [enqueueSnackbar]
-      );
+    (type, text) => {
+      enqueueSnackbar(text, { variant: type });
+    },
+    [enqueueSnackbar]
+  );
+
   const email = localStorage.getItem("email") || "User";
 
   const open = Boolean(anchorEl);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   const handleProfileMenuClick = (event) => setAnchorEl(event.currentTarget);
 
   const handleProfileMenuClose = () => setAnchorEl(null);
 
+  const handleMenuItemClick = (path, callback = null) => {
+    if (callback) callback();
+    console.log("Navigating to:", path);
+    window.location.href = path;
+  };
+
   const handleLogout = async () => {
-      try {
-        const token = localStorage.getItem("token");
-    
-        if (!token) {
-          throw new Error("Token not found in localStorage");
-        }
-    
-        // Send the token to the logout endpoint
-        const response = await apiLogout({ token });
-    
-        if (response.message === "Logout successful") {
-          // Clear token and email from localStorage
-          localStorage.removeItem("token");
-          localStorage.removeItem("email");
-    
-          // Redirect to login page
-          navigate("/login");
-        } else {
-          throw new Error("Failed to logout");
-        }
-      } catch (error) {
-        console.error("Error during logout:", error.message || error);
-        addNotification("error", error.message || "Failed to logout. Please try again.");
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Token not found");
+
+      const response = await apiLogout({ token });
+
+      if (response.message === "Logout successful") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("email");
+        addNotification("success", "Logged out successfully.");
+        handleMenuItemClick("/login");
+      } else {
+        throw new Error("Failed to logout");
       }
-    };
-  
+    } catch (error) {
+      console.error("Logout Error:", error.message || error);
+      addNotification("error", "Logout failed. Please try again.");
+    }
+  };
 
   const menuItems = [
-    { name: "Home", icon: <HomeIcon />, path: "/dashboard" },
-    { name: "Upload Files", icon: <UploadIcon />, path: "/upload" },
-    { name: "Edit File", icon: <EditIcon />, path: "/edit-file" },
-    { name: "Merge Files", icon: <MergeTypeIcon />, path: "/merge" },
-    { name: "Sort and Filter", icon: <QueryStatsIcon />, path: "/sort-filter" },
-    { name: "Group and Pivot", icon: <PivotTableChartIcon />, path: "/group-pivot" },
+    { text: "Home", icon: <HomeIcon />, path: "/dashboard" },
+    { text: "Upload Files", icon: <UploadIcon />, path: "/upload" },
+    { text: "Edit File", icon: <EditIcon />, path: "/edit-file" },
+    { text: "Add Column", icon: <Add />, path: "/add-column" },
+    { text: "Merge Files", icon: <MergeTypeIcon />, path: "/merge" },
+    { text: "Group & Pivot", icon: <PivotTableChartIcon />, path: "/group-pivot" },
+    { text: "Sort & Filter", icon: <FilterList />, path: "/sort-filter" },
+    { text: "Apply Formatting", icon: <FormatPaint />, path: "/apply-formatting" },
+    { text: "Visualization", icon: <BarChartIcon />, path: "/visualization" },
+    { text: "File Operations", icon: <FileOperationsIcon />, path: "/file-operations" },
+    { text: "Reconcile Files", icon: <MergeTypeIcon />, path: "/reconcile" },
+    { text: "Profile", icon: <AccountCircleIcon />, path: "/profile" },
+
   ];
 
   return (
@@ -121,11 +128,16 @@ const NavigationBar = ({ children }) => {
             onClose={handleProfileMenuClose}
             sx={{ mt: "45px" }}
           >
-            <MenuItem onClick={() => { handleProfileMenuClose(); navigate("/profile"); }}>
-              Profile
-            </MenuItem>
+            <MenuItem onClick={() => handleMenuItemClick("/profile")}>Profile</MenuItem>
             <Divider />
-            <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleProfileMenuClose();
+                handleLogout();
+              }}
+            >
+              Logout
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
@@ -134,44 +146,39 @@ const NavigationBar = ({ children }) => {
         variant="persistent"
         open={sidebarOpen}
         sx={{
-          width: sidebarOpen ? drawerWidth : 70,
+          width: drawerWidth,
           flexShrink: 0,
-          [`& .MuiDrawer-paper`]: {
-            width: sidebarOpen ? drawerWidth : 70,
+          "& .MuiDrawer-paper": {
+            width: drawerWidth,
             boxSizing: "border-box",
-            transition: "width 0.3s",
+            bgcolor: "background.paper",
+            borderRight: "1px solid rgba(0, 0, 0, 0.12)",
           },
         }}
       >
-        <Toolbar />
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" component="h1" sx={{ fontWeight: "bold" }}>
+            Excel Operations
+          </Typography>
+        </Box>
+        <Divider />
         <List>
-          {menuItems.map((item, index) => (
-            <ListItem
-              button
-              key={index}
-              onClick={() => navigate(item.path)}
-              selected={location.pathname === item.path} // Highlight if current path matches
+          {menuItems.map((item) => (
+            <MenuItem
+              key={item.text}
+              onClick={() => handleMenuItemClick(item.path)}
               sx={{
-                backgroundColor: location.pathname === item.path ? "rgba(25, 118, 210, 0.1)" : "inherit",
-                "&:hover": { backgroundColor: "rgba(25, 118, 210, 0.2)" },
+                "&:hover": {
+                  backgroundColor: (theme) => theme.palette.action.hover,
+                },
+                borderRadius: 1,
+                mx: 1,
+                mb: 0.5,
               }}
             >
-              <ListItemIcon
-                sx={{
-                  color: location.pathname === item.path ? "#1a73e8" : "inherit",
-                }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              {sidebarOpen && (
-                <ListItemText
-                  primary={item.name}
-                  primaryTypographyProps={{
-                    color: location.pathname === item.path ? "#1a73e8" : "inherit",
-                  }}
-                />
-              )}
-            </ListItem>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </MenuItem>
           ))}
         </List>
       </Drawer>

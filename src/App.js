@@ -15,6 +15,10 @@ import EditFile from './pages/EditFile'
 import AddColumn from './pages/addColumn';
 import GroupAndPivot from './pages/GroupPivot';
 import SortAndFilter from './pages/SortFilter';
+import ApplyFormatting from './pages/applyFormatting';
+import Visualization from './pages/Visualization';
+import ReconcileFiles from './pages/ReconcileFiles';
+import FileOperations from './pages/FileOperations';
 // Create a theme
 const theme = createTheme({
     palette: {
@@ -52,6 +56,10 @@ const App = () => {
                         <Route path="/add-column" element={<AddColumn />} />
                         <Route path='/group-pivot' element = {<GroupAndPivot/>}/>
                         <Route path='/sort-filter' element = {<SortAndFilter/>}/>
+                        <Route path='/apply-formatting' element={<ApplyFormatting/>}/>
+                        <Route path='/visualization' element={<Visualization/>}/>
+                        <Route path='/reconcile' element={<ReconcileFiles/>}/>
+                        <Route path='/file-operations' element={<FileOperations/>}/>
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </Router>

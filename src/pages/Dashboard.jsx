@@ -41,10 +41,11 @@ import {
   AccountCircle as AccountCircleIcon,
   Menu as MenuIcon,
   ExitToApp as ExitToAppIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import NavigationBar from '../components/NavigationBar';
 import { useNavigate } from 'react-router-dom';
-import { getUserFiles, getProcessedFiles } from '../services/api'; // Import both API calls
+import { getUserFiles, getProcessedFiles, deleteFile } from '../services/api'; // Update import
 
 const drawerWidth = 240;
 
@@ -103,6 +104,22 @@ const Dashboard = () => {
     window.open(downloadUrl, '_blank');
   };
 
+  const handleDelete = async (fileName, folder) => {
+    if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
+      try {
+        await deleteFile(fileName, folder);
+        // Refresh the file lists after deletion
+        const uploadedResponse = await getUserFiles();
+        setUploadedFiles(uploadedResponse.files || []);
+        const processedResponse = await getProcessedFiles();
+        setProcessedFiles(processedResponse.files || []);
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+        setError('Failed to delete file.');
+      }
+    }
+  };
+
   return (
     <NavigationBar>
       <Container>
@@ -141,6 +158,14 @@ const Dashboard = () => {
                           >
                             Download
                           </Button>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleDelete(file.fileName, 'uploaded_files')}
+                          >
+                            Delete
+                          </Button>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -175,6 +200,14 @@ const Dashboard = () => {
                             disabled={!file.downloadUrl}
                           >
                             Download
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleDelete(file.fileName, 'processed_files')}
+                          >
+                            Delete
                           </Button>
                         </Stack>
                       </TableCell>

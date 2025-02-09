@@ -1,332 +1,1047 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Container,
-  Typography,
-  Box,
-  TextField,
-  Button,
-  Grid,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  CircularProgress,
-  Alert,
+    Container,
+    Typography,
+    Box,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Button,
+    TextField,
+    IconButton,
+    Paper,
+    Grid,
+    Card,
+    CardContent,
+    CardActions,
+    TableContainer,
+    Table,
+    TableHead,
+    TableBody,
+    TableRow,
+    TableCell,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    FormHelperText,
+    List,
+    ListItem,
+    Divider,
+    Checkbox,
+    Tooltip,
+    InputAdornment,
+    CircularProgress
 } from "@mui/material";
-import { getUserFiles, getFileDetails, previewFileWithColumn } from "../services/api";
+import { 
+    Add as AddIcon, 
+    RemoveCircle as DeleteIcon, 
+    Download as DownloadIcon, 
+    Preview as PreviewIcon,
+    Delete as RemoveStepIcon 
+} from "@mui/icons-material";
+import { getUserFiles, getFileDetails} from "../services/api";
+import NavigationBar from "../components/NavigationBar";
+import SearchIcon from '@mui/icons-material/Search';
+import { applyColumnOperations } from "../services/api";
+import { previewColumnOperations } from "../services/api";
+import { useSnackbar } from "notistack";
+import { submitColumnOperations } from "../services/api";
+const FileColumnOperations = () => {
+    const [files, setFiles] = useState([]);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [fileDetails, setFileDetails] = useState({});
+    const [selectedSheet, setSelectedSheet] = useState("");
+    const [columns, setColumns] = useState([]);
+    const [newColumns, setNewColumns] = useState([]);
+    const [newColumnName, setNewColumnName] = useState("");
+    const [calculationSteps, setCalculationSteps] = useState([]);
+    const [concatSteps, setConcatSteps] = useState([]);
+    const [conditions, setConditions] = useState([]);
+    const [residualValue, setResidualValue] = useState("");
+    const [regexPattern, setRegexPattern] = useState("");
+    const [selectedColumn, setSelectedColumn] = useState("");
+    const [previewData, setPreviewData] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [downloadFormat, setDownloadFormat] = useState("xlsx");
+    const [downloadFileName, setDownloadFileName] = useState("");
+    const [currentColumnIndex, setCurrentColumnIndex] = useState(null);
+    const { enqueueSnackbar } = useSnackbar();
+    const [errors, setErrors] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [newFileName, setNewFileName] = useState('');
 
-const AddColumn = () => {
-  const [files, setFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [fileType, setFileType] = useState(null);
-  const [sheets, setSheets] = useState([]);
-  const [selectedSheet, setSelectedSheet] = useState(null);
-  const [newColumnName, setNewColumnName] = useState("");
-  const [columns, setColumns] = useState([]);
-  const [operations, setOperations] = useState([]);
-  const [previewData, setPreviewData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+    const addNotification = useCallback((type, message) => {
+        enqueueSnackbar(message, { variant: type });
+    }, [enqueueSnackbar]);
 
-  useEffect(() => {
-    const fetchFiles = async () => {
-      setIsLoading(true);
-      try {
-        const response = await getUserFiles();
-        if (response.files) {
-          setFiles(response.files);
-        } else {
-          setError("No files found.");
+    useEffect(() => {
+        const fetchFiles = async () => {
+            try {
+                const response = await getUserFiles();
+                setFiles(response.files || []);
+            } catch (error) {
+                enqueueSnackbar("Failed to fetch files.", { variant: "error" });
+            }
+        };
+        fetchFiles();
+    }, []);
+
+    useEffect(() => {
+        if (selectedFile) {
+            const fetchFileDetails = async () => {
+                setIsLoading(true);
+                try {
+                    console.log(`Fetching details for file: ${selectedFile.fileName}`);
+                    const details = await getFileDetails(selectedFile.fileName);
+
+                    console.log("File details response:", details);
+
+                    if (details.fileType === "Excel") {
+                        setFileDetails(details?.sheets || {});
+                    } else if (details.fileType === "CSV") {
+                        setFileDetails({
+                            CSV: {
+                                columnTypes: details.columnTypes,
+                                columns: details.columns,
+                            },
+                        });
+                    }
+
+                    // Reset selections
+                    setSelectedSheet("");
+                    setColumns([]);
+
+                    // Generate new filename
+                    const baseFileName = details.fileName.replace(/\.[^/.]+$/, "");
+                    const fileExtension = details.fileName.split(".").pop();
+                    setNewFileName(`${baseFileName}_EditedFile.${fileExtension}`);
+
+                    addNotification("success", "File details loaded successfully");
+                } catch (error) {
+                    console.error("Error fetching file details:", error);
+                    addNotification("error", error.message || "Failed to fetch file details");
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            fetchFileDetails();
         }
-      } catch (err) {
-        setError("Failed to fetch files.");
-      } finally {
-        setIsLoading(false);
-      }
+    }, [selectedFile, addNotification]);
+
+    useEffect(() => {
+        if (selectedSheet) {
+            const sheetData = fileDetails[selectedSheet];
+            setColumns(sheetData?.columns || []);
+        }
+    }, [selectedSheet]);
+
+    const handleAddColumn = () => {
+        setNewColumns([...newColumns, { 
+            name: "", 
+            type: "calculate",
+            params: [],
+            sourceColumn: "",
+            pattern: "",
+            residualValue: ""
+        }]);
     };
-    fetchFiles();
-  }, []);
 
-  const handleFileSelect = async (fileName) => {
-    setSelectedFile(fileName);
-    setSelectedSheet(null);
-    setPreviewData(null);
-    setColumns([]);
-    setIsLoading(true);
-    try {
-      const response = await getFileDetails(fileName);
-      setFileType(response.fileType);
+    const handleUpdateColumn = (index, field, value) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[index][field] = value;
+        setNewColumns(updatedColumns);
+    };
 
-      if (response.fileType === "Excel" && response.sheets) {
-        setSheets(Object.keys(response.sheets));
-      } else if (response.fileType === "CSV" && response.columns) {
-        setColumns(response.columns);
-      } else {
-        setError("No sheets or columns found for the selected file.");
-      }
-    } catch (err) {
-      setError("Failed to fetch file details.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const handleRemoveColumn = (index) => {
+        setNewColumns(newColumns.filter((_, i) => i !== index));
+    };
 
-  const handleSheetSelect = async (sheetName) => {
-    setSelectedSheet(sheetName);
-    setPreviewData(null);
-    setIsLoading(true);
-  
-    try {
-      const response = await getFileDetails(selectedFile, sheetName);
-  
-      console.log("Sheet Details Response:", response); // Debugging the response
-  
-      if (response && response.sheets && response.sheets[sheetName]) {
-        // Access columns dynamically based on the selected sheet
-        const sheetColumns = response.sheets[sheetName];
-        setColumns(sheetColumns);
-        console.log("Columns for Selected Sheet:", sheetColumns); // Debug columns
-      } else {
-        setError("No columns found for the selected sheet.");
-        console.error("No columns found in response for the sheet:", sheetName);
-      }
-    } catch (err) {
-      console.error("Error fetching sheet details:", err);
-      setError("Failed to fetch sheet details.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
+    const handleOperationTypeChange = (index, value) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[index].type = value;
+        updatedColumns[index].params = [];
+        setNewColumns(updatedColumns);
+    };
 
-  const handlePreviewFile = async () => {
-    if (!selectedFile) {
-        alert("Please select a file to preview.");
-        return;
-    }
+    const handleAddCalculationStep = (columnIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params.push({
+            col1: "",
+            operator: "+",
+            col2: "",
+            value: null
+        });
+        setNewColumns(updatedColumns);
+    };
 
-    setIsLoading(true);
-    try {
-            const data = await previewFileWithColumn({
-            fileName: selectedFile,
-            selectedSheets: {}, // Add any selected sheet logic
-            // Assuming `selectedFile` is an object with a `fileName` property
-            newColumnName: newColumnName || "new_column", // Optional, defaults to "new_column"
-            operations: operations.map(op => ({
-              leftOperand: op.leftOperand,
-              operator: op.operator,
-              rightOperand: op.rightOperand,
-              fixedValue: op.fixedValue || null,
-            })),
-          });
-          const response = JSON.parse(data.replace(/\bNaN\b/g, "null"));
-          console.log("type",typeof response)
-        // Check the response
-        if (response.success) {
-            setPreviewData(response.previewData?.CSV || response.previewData); // Handle CSV-specific data
-            setColumns(response.columns || []); // Update columns if provided
-            setError(null); // Clear previous errors
-        } else {
-            // Log and set the error message if `success` is false
-            console.error("API Response Error:", response.error || "Unknown error");
-            setError(response.error || "Failed to load preview data.");
+    const handleAddConcatStep = (columnIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params.push({
+            column: "",
+            type: "Full text",
+            chars: null
+        });
+        setNewColumns(updatedColumns);
+    };
+
+    const handleAddCondition = (columnIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params.push({
+            column: "",
+            operator: "equals",
+            referenceValue: "",
+            conditionalValue: ""
+        });
+        setNewColumns(updatedColumns);
+    };
+
+    const handleRemoveCalculationStep = (columnIndex, stepIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params.splice(stepIndex, 1);
+        setNewColumns(updatedColumns);
+    };
+
+    const handleRemoveConcatStep = (columnIndex, stepIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params.splice(stepIndex, 1);
+        setNewColumns(updatedColumns);
+    };
+
+    const handleRemoveCondition = (columnIndex, condIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params.splice(condIndex, 1);
+        setNewColumns(updatedColumns);
+    };
+
+    const validateOperation = (column) => {
+        const newErrors = {};
+
+        if (!column.name) {
+            newErrors.name = "Column name is required";
         }
-    } catch (err) {
-        console.error("Error in handlePreviewFile:", err);
-        setError(err.message || "Failed to fetch preview.");
-    } finally {
-        setIsLoading(false);
-    }
-};
 
+        if (column.type === "conditional") {
+            if (column.residualValue === undefined || column.residualValue === "") {
+                newErrors.residualValue = "Residual value is required";
+            }
+            if (!column.params || column.params.length === 0) {
+                newErrors.params = "At least one condition is required";
+            } else {
+                column.params.forEach((param, index) => {
+                    if (!param.column) newErrors[`param${index}_column`] = "Column is required";
+                    if (!param.referenceValue) newErrors[`param${index}_reference`] = "Reference value is required";
+                    if (!param.conditionalValue) newErrors[`param${index}_conditional`] = "Conditional value is required";
+                });
+            }
+        }
 
-  const addOperation = () => {
-    setOperations([...operations, { leftOperand: "", operator: "+", rightOperand: "", fixedValue: "" }]);
-  };
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
-  const handleOperationChange = (index, field, value) => {
-    const updatedOperations = [...operations];
-    updatedOperations[index][field] = value;
-    if (field === "rightOperand" && value !== "Fixed Value") {
-      updatedOperations[index].fixedValue = "";
-    }
-    setOperations(updatedOperations);
-  };
+    const handleClosePreview = () => {
+        setPreviewOpen(false);
+        setCurrentColumnIndex(null);
+    };
+    const handlePreview = async (selectedIndices = null) => {
+        try {
+            setIsSubmitting(true);
+            
+            // Ensure indicesToPreview is always an array
+            const indicesToPreview = Array.isArray(selectedIndices) 
+                ? selectedIndices 
+                : selectedIndices !== null 
+                    ? [selectedIndices] 
+                    : Array.from({ length: newColumns.length }, (_, i) => i);
+    
+            setCurrentColumnIndex(indicesToPreview[0]);
+    
+            const operations = indicesToPreview.map(index => {
+                const column = newColumns[index];
+                return {
+                    type: column.type,
+                    newColumnName: column.name,
+                    params: column.params,
+                    sourceColumn: column.sourceColumn,
+                    pattern: column.pattern,
+                    residualValue: column.residualValue
+                };
+            });
+    
+            const result = await previewColumnOperations(
+                selectedFile.fileName,
+                selectedSheet,
+                operations
+            );
+    
+            if (result.success) {
+                setPreviewData(result.preview);
+                setPreviewOpen(true);
+            } else {
+                enqueueSnackbar(result.error || 'Preview failed', { variant: 'error' });
+            }
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to generate preview', { variant: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    const handleSubmitOperations = async (columnIndex) => {
+        try {
+            const column = newColumns[columnIndex];
+            if (!validateOperation(column)) {
+                enqueueSnackbar('Please fix the errors before submitting', { variant: 'error' });
+                return;
+            }
+    
+            setIsSubmitting(true);
+            
+            // Format the operation object to match backend expectations
+            const operations = [{
+                type: column.type,
+                newColumnName: column.name,
+                params: column.params || [],
+                sourceColumn: column.sourceColumn || '',
+                pattern: column.pattern || '',
+                residualValue: column.residualValue || ''
+            }];
+    
+            const payload = {
+                fileName: selectedFile.fileName,  // Make sure this matches the actual file name
+                sheet: selectedSheet,
+                operations: operations,
+                format: downloadFormat || 'xlsx'
+            };
+    
+            const result = await submitColumnOperations(
+                payload.fileName,
+                payload.sheet,
+                payload.operations,
+                payload.format
+            );
+    
+            if (result.success) {
+                enqueueSnackbar('Operation applied successfully', { variant: 'success' });
+                
+                // Update the files list with the new file
+                if (result.fileName && result.downloadUrl) {
+                    setFiles(prevFiles => [...prevFiles, {
+                        fileName: result.fileName,
+                        downloadUrl: result.downloadUrl
+                    }]);
+                }
+                
+                // Remove the applied column operation
+                const updatedColumns = [...newColumns];
+                updatedColumns.splice(columnIndex, 1);
+                setNewColumns(updatedColumns);
+                setErrors({});
+            } else {
+                enqueueSnackbar(result.error || 'Operation failed', { variant: 'error' });
+            }
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to apply operation', { variant: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    // Add a new button to apply all operations at once
+    const renderApplyAllButton = () => {
+        if (newColumns.length > 1) {
+            return (
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => handleSubmitOperations()}
+                    disabled={isSubmitting}
+                    sx={{ mt: 2, mb: 2 }}
+                    startIcon={<AddIcon />}
+                    aria-label="Apply all column operations"
+                >
+                    Apply All Column Operations
+                </Button>
+            );
+        }
+        return null;
+    };
+    const handleDownload = async (columnIndex) => {
+        try {
+            setIsSubmitting(true);
+            const column = newColumns[columnIndex];
+            
+            const operation = {
+                fileName: selectedFile,
+                sheetName: selectedSheet,
+                operation: {
+                    type: column.type,
+                    newColumnName: column.name,
+                    params: column.params,
+                    sourceColumn: column.sourceColumn,
+                    pattern: column.pattern,
+                    residualValue: column.residualValue
+                },
+                format: downloadFormat
+            };
 
-  return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Add New Column
-      </Typography>
+            const result = await submitColumnOperations(selectedFile, operation);
+            
+            const url = window.URL.createObjectURL(new Blob([result.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${selectedFile}_updated.${downloadFormat}`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            
+            enqueueSnackbar('File downloaded successfully', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar('Failed to download file', { variant: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-      {isLoading ? (
-        <Box sx={{ textAlign: "center", mt: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : error ? (
-        <Alert severity="error">{error}</Alert>
-      ) : (
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Select a File</InputLabel>
-          <Select value={selectedFile} onChange={(e) => handleFileSelect(e.target.value)} label="Select a File">
-            {files.map((file) => (
-              <MenuItem key={file.fileName} value={file.fileName}>
-                {file.fileName}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
+    const renderColumnParameters = (column, columnIndex) => {
+        switch (column.type) {
+            case "calculate":
+                return (
+                    <>
+                        <TextField
+                            fullWidth
+                            label="New Column Name"
+                            value={column.name}
+                            onChange={(e) => handleUpdateColumn(columnIndex, "name", e.target.value)}
+                            sx={{ mb: 2 }}
+                        />
+                        {column.params.map((step, stepIndex) => (
+                            <Grid container spacing={2} key={stepIndex} sx={{ mb: 2 }}>
+                                <Grid item xs={4}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Column</InputLabel>
+                                        <Select
+                                            value={step.col1}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].col1 = e.target.value;
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        >
+                                            {columns.map((col) => (
+                                                <MenuItem key={col} value={col}>{col}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid item xs={2}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Operator</InputLabel>
+                                        <Select
+                                            value={step.operator}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].operator = e.target.value;
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        >
+                                            {["+", "-", "*", "/"].map((op) => (
+                                                <MenuItem key={op} value={op}>{op}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid item xs={4}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Other Column or Fixed Value</InputLabel>
+                                        <Select
+                                            value={step.col2}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].col2 = e.target.value;
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        >
+                                            {[...columns, "Fixed Value"].map((col) => (
+                                                <MenuItem key={col} value={col}>{col}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                {step.col2 === "Fixed Value" && (
+                                    <Grid item xs={2}>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            label="Value"
+                                            value={step.value || ""}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].value = parseFloat(e.target.value);
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        />
+                                    </Grid>
+                                )}
+                                <Grid item xs={1}>
+                                    <IconButton 
+                                        onClick={() => handleRemoveCalculationStep(columnIndex, stepIndex)}
+                                        color="error"
+                                        aria-label="Remove calculation step"
+                                        title="Remove calculation step"
+                                    >
+                                        <RemoveStepIcon />
+                                    </IconButton>
+                                </Grid>
+                            </Grid>
+                        ))}
+                        <Button
+                            variant="outlined"
+                            onClick={() => handleAddCalculationStep(columnIndex)}
+                            startIcon={<AddIcon />}
+                            sx={{ mt: 1 }}
+                            aria-label="Add calculation step"
+                        >
+                            Add Calculation Step
+                        </Button>
+                    </>
+                );
 
-      {fileType === "Excel" && sheets.length > 0 && (
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Select a Sheet</InputLabel>
-          <Select value={selectedSheet} onChange={(e) => handleSheetSelect(e.target.value)} label="Select a Sheet">
-            {sheets.map((sheet) => (
-              <MenuItem key={sheet} value={sheet}>
-                {sheet}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
+            case "concatenate":
+                return (
+                    <>
+                        <TextField
+                            fullWidth
+                            label="New Column Name"
+                            value={column.name}
+                            onChange={(e) => handleUpdateColumn(columnIndex, "name", e.target.value)}
+                            sx={{ mb: 2 }}
+                        />
+                        {column.params.map((step, stepIndex) => (
+                            <Grid container spacing={2} key={stepIndex} sx={{ mb: 2 }}>
+                                <Grid item xs={5}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Column</InputLabel>
+                                        <Select
+                                            value={step.column || ""}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].column = e.target.value;
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        >
+                                            {columns.map((col) => (
+                                                <MenuItem key={col} value={col}>{col}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid item xs={3}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Type</InputLabel>
+                                        <Select
+                                            value={step.type || "Full text"}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].type = e.target.value;
+                                                if (e.target.value === "Full text") {
+                                                    updatedColumns[columnIndex].params[stepIndex].chars = null;
+                                                }
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        >
+                                            <MenuItem value="Full text">Full text</MenuItem>
+                                            <MenuItem value="Left">Left</MenuItem>
+                                            <MenuItem value="Right">Right</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                {step.type !== "Full text" && (
+                                    <Grid item xs={3}>
+                                        <TextField
+                                            fullWidth
+                                            type="number"
+                                            label="Number of Characters"
+                                            value={step.chars || ""}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[stepIndex].chars = parseInt(e.target.value, 10);
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                            InputProps={{
+                                                inputProps: { min: 1 }
+                                            }}
+                                        />
+                                    </Grid>
+                                )}
+                                <Grid item xs={1}>
+                                    <IconButton 
+                                        onClick={() => handleRemoveConcatStep(columnIndex, stepIndex)}
+                                        color="error"
+                                        aria-label="Remove concatenation step"
+                                        title="Remove concatenation step"
+                                    >
+                                        <RemoveStepIcon />
+                                    </IconButton>
+                                </Grid>
+                            </Grid>
+                        ))}
+                        <Button
+                            variant="outlined"
+                            onClick={() => handleAddConcatStep(columnIndex)}
+                            startIcon={<AddIcon />}
+                            sx={{ mt: 1 }}
+                            aria-label="Add concatenation step"
+                        >
+                            Add Text Part
+                        </Button>
+                    </>
+                );
 
-      {columns.length > 0 && (
-        <>
-          <TextField
-            label="New Column Name"
+            case "conditional":
+                return (
+                    <>
+                        <TextField
+                            fullWidth
+                            label="New Column Name"
+                            value={column.name}
+                            onChange={(e) => handleUpdateColumn(columnIndex, "name", e.target.value)}
+                            sx={{ mb: 2 }}
+                            error={!!errors.name}
+                            helperText={errors.name}
+                        />
+                        <TextField
+                            fullWidth
+                            label="Residual Value (if no conditions are met)"
+                            value={column.residualValue || ""}
+                            onChange={(e) => handleUpdateColumn(columnIndex, "residualValue", e.target.value)}
+                            sx={{ mb: 3 }}
+                            error={!!errors.residualValue}
+                            helperText={errors.residualValue || "This value will be used if none of the conditions match"}
+                        />
+                        
+                        {errors.params && (
+                            <Typography color="error" sx={{ mb: 2 }}>
+                                {errors.params}
+                            </Typography>
+                        )}
+                        
+                        {column.params.map((condition, condIndex) => (
+                            <Box key={condIndex} sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                                    Condition {condIndex + 1}
+                                </Typography>
+                                <Grid container spacing={2} alignItems="center">
+                                    <Grid item xs={12} sm={3}>
+                                        <FormControl fullWidth error={!!errors[`param${condIndex}_column`]}>
+                                            <InputLabel>Column</InputLabel>
+                                            <Select
+                                                value={condition.column || ""}
+                                                onChange={(e) => {
+                                                    const updatedColumns = [...newColumns];
+                                                    updatedColumns[columnIndex].params[condIndex].column = e.target.value;
+                                                    setNewColumns(updatedColumns);
+                                                }}
+                                            >
+                                                {columns.map((col) => (
+                                                    <MenuItem key={col} value={col}>{col}</MenuItem>
+                                                ))}
+                                            </Select>
+                                            {errors[`param${condIndex}_column`] && (
+                                                <FormHelperText>{errors[`param${condIndex}_column`]}</FormHelperText>
+                                            )}
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid item xs={12} sm={3}>
+                                        <FormControl fullWidth>
+                                            <InputLabel>Operator</InputLabel>
+                                            <Select
+                                                value={condition.operator || "equals"}
+                                                onChange={(e) => {
+                                                    const updatedColumns = [...newColumns];
+                                                    updatedColumns[columnIndex].params[condIndex].operator = e.target.value;
+                                                    setNewColumns(updatedColumns);
+                                                }}
+                                            >
+                                                <MenuItem value="equals">equals</MenuItem>
+                                                <MenuItem value="does not equal">does not equal</MenuItem>
+                                                <MenuItem value="greater than">greater than</MenuItem>
+                                                <MenuItem value="greater than or equal to">greater than or equal to</MenuItem>
+                                                <MenuItem value="less than">less than</MenuItem>
+                                                <MenuItem value="less than or equal to">less than or equal to</MenuItem>
+                                                <MenuItem value="begins with">begins with</MenuItem>
+                                                <MenuItem value="does not begin with">does not begin with</MenuItem>
+                                                <MenuItem value="ends with">ends with</MenuItem>
+                                                <MenuItem value="does not end with">does not end with</MenuItem>
+                                                <MenuItem value="contains">contains</MenuItem>
+                                                <MenuItem value="does not contain">does not contain</MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid item xs={12} sm={2}>
+                                        <TextField
+                                            fullWidth
+                                            label="Reference Value"
+                                            value={condition.referenceValue || ""}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[condIndex].referenceValue = e.target.value;
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={3}>
+                                        <TextField
+                                            fullWidth
+                                            label="Conditional Value"
+                                            value={condition.conditionalValue || ""}
+                                            onChange={(e) => {
+                                                const updatedColumns = [...newColumns];
+                                                updatedColumns[columnIndex].params[condIndex].conditionalValue = e.target.value;
+                                                setNewColumns(updatedColumns);
+                                            }}
+                                            helperText="Value if condition is true"
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={1}>
+                                        <IconButton 
+                                            onClick={() => handleRemoveCondition(columnIndex, condIndex)}
+                                            color="error"
+                                            aria-label="Remove condition"
+                                            title="Remove condition"
+                                        >
+                                            <RemoveStepIcon />
+                                        </IconButton>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+                        ))}
+                        
+                        <Button
+                            variant="outlined"
+                            onClick={() => handleAddCondition(columnIndex)}
+                            startIcon={<AddIcon />}
+                            sx={{ mt: 2 }}
+                            aria-label="Add condition"
+                        >
+                            Add Condition Rule
+                        </Button>
+                    </>
+                );
+
+            case "pattern":
+                return (
+                    <>
+                        <TextField
+                            fullWidth
+                            label="New Column Name"
+                            value={column.name}
+                            onChange={(e) => handleUpdateColumn(columnIndex, "name", e.target.value)}
+                            sx={{ mb: 2 }}
+                        />
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Select Column</InputLabel>
+                                    <Select
+                                        value={column.sourceColumn || ""}
+                                        onChange={(e) => handleUpdateColumn(columnIndex, "sourceColumn", e.target.value)}
+                                    >
+                                        {columns.map((col) => (
+                                            <MenuItem key={col} value={col}>{col}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Regex Pattern"
+                                    value={column.pattern || ""}
+                                    onChange={(e) => handleUpdateColumn(columnIndex, "pattern", e.target.value)}
+                                    helperText="Enter a regular expression pattern"
+                                />
+                            </Grid>
+                        </Grid>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    const PreviewDialog = () => (
+        <Dialog 
+            open={previewOpen} 
+            onClose={handleClosePreview}
+            maxWidth="lg"
             fullWidth
-            value={newColumnName}
-            onChange={(e) => setNewColumnName(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-
-          {operations.map((op, index) => (
-            <Grid container spacing={2} key={index} alignItems="center">
-              <Grid item xs={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Left Operand</InputLabel>
-                  <Select
-                    value={op.leftOperand}
-                    onChange={(e) => handleOperationChange(index, "leftOperand", e.target.value)}
-                  >
-                    {columns.map((col) => (
-                      <MenuItem key={col} value={col}>
-                        {col}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={2}>
-                <FormControl fullWidth>
-                  <InputLabel>Operator</InputLabel>
-                  <Select
-                    value={op.operator}
-                    onChange={(e) => handleOperationChange(index, "operator", e.target.value)}
-                  >
-                    <MenuItem value="+">+</MenuItem>
-                    <MenuItem value="-">-</MenuItem>
-                    <MenuItem value="*">*</MenuItem>
-                    <MenuItem value="/">/</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Right Operand</InputLabel>
-                  <Select
-                    value={op.rightOperand}
-                    onChange={(e) => handleOperationChange(index, "rightOperand", e.target.value)}
-                  >
-                    {columns.map((col) => (
-                      <MenuItem key={col} value={col}>
-                        {col}
-                      </MenuItem>
-                    ))}
-                    <MenuItem value="Fixed Value">Fixed Value</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              {op.rightOperand === "Fixed Value" && (
-                <Grid item xs={3}>
-                  <TextField
-                    label="Fixed Value"
-                    fullWidth
-                    value={op.fixedValue}
-                    onChange={(e) => handleOperationChange(index, "fixedValue", e.target.value)}
-                  />
-                </Grid>
-              )}
-            </Grid>
-          ))}
-
-          <Button onClick={addOperation} variant="outlined" sx={{ mt: 2 }}>
-            Add Operation
-          </Button>
-        </>
-      )}
-
-      {previewData && (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            File Preview
-          </Typography>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                {columns.map((col, idx) => (
-                  <th
-                    key={idx}
-                    style={{
-                      border: "1px solid #ddd",
-                      padding: "8px",
-                      backgroundColor: "#f2f2f2",
-                    }}
-                  >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {previewData.map((row, idx) => (
-                <tr key={idx}>
-                  {columns.map((col, colIdx) => (
-                    <td
-                      key={colIdx}
-                      style={{
-                        border: "1px solid #ddd",
-                        padding: "8px",
-                        textAlign: "center",
-                      }}
-                    >
-                      {row[col] !== undefined && row[col] !== null ? row[col] : "N/A"}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <pre>{JSON.stringify(previewData, null, 2)}</pre> {/* Debugging preview data */}
-        </Box>
-      )}
-
-      <Box sx={{ mt: 4 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handlePreviewFile}
-          sx={{ mr: 2 }}
         >
-          Preview File
-        </Button>
-        <Button variant="outlined" color="secondary">
-          Submit
-        </Button>
-      </Box>
-    </Container>
-  );
+            <DialogTitle>Preview Results</DialogTitle>
+            <DialogContent>
+                {previewData && (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    {Object.keys(previewData[0] || {}).map((key) => (
+                                        <TableCell key={key}>{key}</TableCell>
+                                    ))}
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {previewData.slice(0, 10).map((row, index) => (
+                                    <TableRow key={index}>
+                                        {Object.values(row).map((value, i) => (
+                                            <TableCell key={i}>{value}</TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
+            </DialogContent>
+            <DialogActions>
+                <FormControl sx={{ m: 1, minWidth: 120 }}>
+                    <InputLabel>Format</InputLabel>
+                    <Select
+                        value={downloadFormat}
+                        onChange={(e) => setDownloadFormat(e.target.value)}
+                        size="small"
+                    >
+                        <MenuItem value="xlsx">Excel (.xlsx)</MenuItem>
+                        <MenuItem value="csv">CSV (.csv)</MenuItem>
+                    </Select>
+                </FormControl>
+                <Button onClick={handleClosePreview}>Close</Button>
+                <Button 
+                    variant="contained" 
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleDownload(currentColumnIndex)}
+                    disabled={currentColumnIndex === null}
+                    aria-label="Download modified file"
+                >
+                    Download Modified File
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+
+    const handleFileSelection = (file) => {
+        setSelectedFile(file);
+        addNotification("success", "File selected successfully");
+    };
+
+    const filteredFiles = files.filter(file => 
+        file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return (
+        <NavigationBar>
+        <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+            <Paper elevation={3} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    Select File
+                </Typography>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Please select a file to add new columns.
+                </Typography>
+
+                <TextField
+                    fullWidth
+                    placeholder="Search files..."
+                    variant="outlined"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon />
+                            </InputAdornment>
+                        ),
+                    }}
+                    sx={{ mb: 2 }}
+                />
+
+                {isLoading ? (
+                    <Box display="flex" justifyContent="center" p={3}>
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <>
+                        <List>
+                            {filteredFiles.map((file, index) => (
+                                <React.Fragment key={file.fileName || `file-${index}`}>
+                                    <ListItem
+                                        sx={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                        }}
+                                    >
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                            <Checkbox
+                                                checked={selectedFile?.fileName === file.fileName}
+                                                onChange={() => handleFileSelection(file)}
+                                            />
+                                            <Tooltip title={file.fileName} arrow>
+                                                <Typography
+                                                    variant="body1"
+                                                    sx={{
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        maxWidth: "300px",
+                                                    }}
+                                                >
+                                                    {file.fileName}
+                                                </Typography>
+                                            </Tooltip>
+                                        </Box>
+                                        <Button
+                                            variant="outlined"
+                                            href={file.downloadUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Download
+                                        </Button>
+                                    </ListItem>
+                                    <Divider />
+                                </React.Fragment>
+                            ))}
+                        </List>
+
+                        {selectedFile && (
+                            <TextField
+                                fullWidth
+                                label="Output File Name"
+                                value={newFileName}
+                                onChange={(e) => setNewFileName(e.target.value)}
+                                sx={{ mt: 2 }}
+                                helperText="Enter the name for the output file"
+                            />
+                        )}
+                    </>
+                )}
+            </Paper>
+
+            {selectedFile && !isLoading && (
+                <Paper elevation={3} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Select Sheet
+                    </Typography>
+                    <FormControl 
+                        fullWidth 
+                        sx={{ mb: 3 }}
+                    >
+                        <InputLabel>Select Sheet</InputLabel>
+                        <Select 
+                            value={selectedSheet} 
+                            onChange={(e) => setSelectedSheet(e.target.value)}
+                        >
+                            {Object.keys(fileDetails).map((sheet) => (
+                                <MenuItem key={sheet} value={sheet}>
+                                    {sheet}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Paper>
+            )}
+
+            {selectedSheet && (
+                <>
+                    {renderApplyAllButton()}
+                    {newColumns.map((col, index) => (
+                        <Card key={index} sx={{ mb: 2 }}>
+                            <CardContent>
+                                <Grid container spacing={2} sx={{ mb: 2 }}>
+                                    <Grid item xs={5}>
+                                        <TextField
+                                            fullWidth
+                                            label="Column Name"
+                                            value={col.name}
+                                            onChange={(e) => handleUpdateColumn(index, "name", e.target.value)}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={5}>
+                                        <FormControl fullWidth>
+                                            <InputLabel>Operation Type</InputLabel>
+                                            <Select
+                                                value={col.type}
+                                                onChange={(e) => handleOperationTypeChange(index, e.target.value)}
+                                            >
+                                                <MenuItem value="calculate">Calculate from other columns</MenuItem>
+                                                <MenuItem value="concatenate">Concatenate from other columns</MenuItem>
+                                                <MenuItem value="conditional">Conditional values</MenuItem>
+                                                <MenuItem value="pattern">Pattern extraction</MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid item xs={2}>
+                                        <IconButton 
+                                            onClick={() => handleRemoveColumn(index)}
+                                            color="error"
+                                            aria-label="Remove entire column operation"
+                                            title="Remove entire column operation"
+                                            sx={{ mt: 1 }}
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </Grid>
+                                </Grid>
+
+                                <Box sx={{ mt: 2 }}>
+                                    {renderColumnParameters(col, index)}
+                                </Box>
+                            </CardContent>
+                            <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<PreviewIcon />}
+                                    onClick={() => handlePreview(index)}
+                                    disabled={isSubmitting}
+                                    aria-label="Preview column changes"
+                                >
+                                    Preview Changes
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => handleSubmitOperations(index)}
+                                    disabled={isSubmitting}
+                                    aria-label="Apply column operation"
+                                >
+                                    {isSubmitting ? 'Applying...' : 'Apply Changes'}
+                                </Button>
+                            </CardActions>
+                        </Card>
+                    ))}
+                    
+                    <Button 
+                        onClick={handleAddColumn} 
+                        variant="outlined" 
+                        startIcon={<AddIcon />}
+                        sx={{ mt: 2 }}
+                        aria-label="Add new column operation"
+                    >
+                        Add New Column Operation
+                    </Button>
+                </>
+            )}
+
+            <PreviewDialog />
+        </Container>
+        </NavigationBar>
+    );
 };
 
-export default AddColumn;
+export default FileColumnOperations;
