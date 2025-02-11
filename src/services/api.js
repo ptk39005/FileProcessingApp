@@ -527,16 +527,18 @@ export const previewMergedFile = async (payload) => {
  * @returns {Object} Response data with saved file details.
  */
 export const saveMergedFile = async (payload) => {
-    const email = localStorage.getItem('email');
-    if (!email) {
-      throw new Error('Email not found in local storage.');
-    }
-  
     try {
-      const response = await API.post('/api/merge_files/merge', payload, {
+      const email = localStorage.getItem('email');
+      if (!email) {
+        throw new Error('Email not found in local storage.');
+      }
+
+      const response = await API.post('/api/merge_files/merge', {
+        ...payload,
+        outputFileName: payload.outputFileName // Add this new field
+      }, {
         headers: {
           'X-User-Email': email,
-          'Accept': 'application/json',
         },
       });
       return response.data;
@@ -744,7 +746,7 @@ export const generateEditFilePreview = async (payload) => {
 };
 
 /**
- * Submit column operations for processing
+ * Submit all column operations for processing
  * @param {string} fileName - Name of the file
  * @param {string} sheet - Sheet name
  * @param {Array} operations - Array of operation configurations
@@ -752,29 +754,30 @@ export const generateEditFilePreview = async (payload) => {
  * @returns {Promise} - Response data with processing results
  */
 export const submitColumnOperations = async (fileName, sheet, operations, format = 'xlsx') => {
-  const email = localStorage.getItem('email');
-  if (!email) {
-      throw new Error('Email not found in local storage.');
-  }
+    const email = localStorage.getItem('email');
+    if (!email) {
+        throw new Error('Email not found in local storage.');
+    }
 
-  try {
-      const response = await API.post('/api/add_column/apply', {
-          fileName,
-          sheet,
-          operations,
-          format
-      }, {
-          headers: {
-              'X-User-Email': email,
-              'Accept': 'application/json',
-          },
-      });
-      return response.data;
-  } catch (error) {
-      console.error('Error submitting column operations:', error);
-      throw handleApiError(error);
-  }
+    try {
+        const response = await API.post('/api/add_column/apply', {
+            fileName,
+            sheet,
+            operations,
+            format
+        }, {
+            headers: {
+                'X-User-Email': email,
+                'Accept': 'application/json',
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error submitting column operations:', error);
+        throw handleApiError(error);
+    }
 };
+
 /**
  * Preview multiple column operations
  * @param {string} fileName - Name of the file

@@ -28,6 +28,7 @@ const theme = createTheme({
         secondary: {
             main: '#d32f2f', // Red color for secondary
         },
+        
     },
 });
 

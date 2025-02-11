@@ -163,8 +163,14 @@ const FileColumnOperations = () => {
 
     const handleOperationTypeChange = (index, value) => {
         const updatedColumns = [...newColumns];
-        updatedColumns[index].type = value;
-        updatedColumns[index].params = [];
+        updatedColumns[index] = {
+            name: "",
+            type: value,
+            params: [],
+            sourceColumn: "",
+            pattern: "",
+            residualValue: ""
+        };
         setNewColumns(updatedColumns);
     };
 
@@ -248,30 +254,24 @@ const FileColumnOperations = () => {
         setPreviewOpen(false);
         setCurrentColumnIndex(null);
     };
-    const handlePreview = async (selectedIndices = null) => {
+    const handlePreview = async () => {
         try {
+            if (newColumns.length === 0) {
+                addNotification('error', 'No column operations added');
+                return;
+            }
+
             setIsSubmitting(true);
             
-            // Ensure indicesToPreview is always an array
-            const indicesToPreview = Array.isArray(selectedIndices) 
-                ? selectedIndices 
-                : selectedIndices !== null 
-                    ? [selectedIndices] 
-                    : Array.from({ length: newColumns.length }, (_, i) => i);
-    
-            setCurrentColumnIndex(indicesToPreview[0]);
-    
-            const operations = indicesToPreview.map(index => {
-                const column = newColumns[index];
-                return {
-                    type: column.type,
-                    newColumnName: column.name,
-                    params: column.params,
-                    sourceColumn: column.sourceColumn,
-                    pattern: column.pattern,
-                    residualValue: column.residualValue
-                };
-            });
+            // Format all operations
+            const operations = newColumns.map(column => ({
+                type: column.type,
+                newColumnName: column.name,
+                params: column.params || [],
+                sourceColumn: column.sourceColumn || '',
+                pattern: column.pattern || '',
+                residualValue: column.residualValue || ''
+            }));
     
             const result = await previewColumnOperations(
                 selectedFile.fileName,
@@ -283,53 +283,47 @@ const FileColumnOperations = () => {
                 setPreviewData(result.preview);
                 setPreviewOpen(true);
             } else {
-                enqueueSnackbar(result.error || 'Preview failed', { variant: 'error' });
+                throw new Error(result.error || 'Preview failed');
             }
         } catch (error) {
-            enqueueSnackbar(error.message || 'Failed to generate preview', { variant: 'error' });
+            addNotification('error', error.message || 'Failed to generate preview');
         } finally {
             setIsSubmitting(false);
         }
     };
     
-    const handleSubmitOperations = async (columnIndex) => {
+    const handleSubmitOperations = async () => {
         try {
-            const column = newColumns[columnIndex];
-            if (!validateOperation(column)) {
-                enqueueSnackbar('Please fix the errors before submitting', { variant: 'error' });
-                return;
+            // Validate all operations first
+            for (const column of newColumns) {
+                if (!validateOperation(column)) {
+                    addNotification('error', 'Please fix the errors before submitting');
+                    return;
+                }
             }
-    
+
             setIsSubmitting(true);
             
-            // Format the operation object to match backend expectations
-            const operations = [{
+            // Format all operations
+            const operations = newColumns.map(column => ({
                 type: column.type,
                 newColumnName: column.name,
                 params: column.params || [],
                 sourceColumn: column.sourceColumn || '',
                 pattern: column.pattern || '',
                 residualValue: column.residualValue || ''
-            }];
-    
-            const payload = {
-                fileName: selectedFile.fileName,  // Make sure this matches the actual file name
-                sheet: selectedSheet,
-                operations: operations,
-                format: downloadFormat || 'xlsx'
-            };
-    
+            }));
+
             const result = await submitColumnOperations(
-                payload.fileName,
-                payload.sheet,
-                payload.operations,
-                payload.format
+                selectedFile.fileName,
+                selectedSheet,
+                operations,
+                downloadFormat
             );
-    
+
             if (result.success) {
-                enqueueSnackbar('Operation applied successfully', { variant: 'success' });
+                addNotification('success', 'All operations applied successfully');
                 
-                // Update the files list with the new file
                 if (result.fileName && result.downloadUrl) {
                     setFiles(prevFiles => [...prevFiles, {
                         fileName: result.fileName,
@@ -337,16 +331,14 @@ const FileColumnOperations = () => {
                     }]);
                 }
                 
-                // Remove the applied column operation
-                const updatedColumns = [...newColumns];
-                updatedColumns.splice(columnIndex, 1);
-                setNewColumns(updatedColumns);
+                // Clear all operations after successful application
+                setNewColumns([]);
                 setErrors({});
             } else {
-                enqueueSnackbar(result.error || 'Operation failed', { variant: 'error' });
+                throw new Error(result.error || 'Operation failed');
             }
         } catch (error) {
-            enqueueSnackbar(error.message || 'Failed to apply operation', { variant: 'error' });
+            addNotification('error', error.message || 'Failed to apply operations');
         } finally {
             setIsSubmitting(false);
         }
@@ -845,7 +837,7 @@ const FileColumnOperations = () => {
 
     return (
         <NavigationBar>
-        <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="lg" sx={{ padding: 4 }}>
             <Paper elevation={3} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
                     Select File
@@ -907,6 +899,7 @@ const FileColumnOperations = () => {
                                         </Box>
                                         <Button
                                             variant="outlined"
+                                            color="#B82132"
                                             href={file.downloadUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
@@ -958,84 +951,150 @@ const FileColumnOperations = () => {
             )}
 
             {selectedSheet && (
-                <>
-                    {renderApplyAllButton()}
-                    {newColumns.map((col, index) => (
-                        <Card key={index} sx={{ mb: 2 }}>
-                            <CardContent>
-                                <Grid container spacing={2} sx={{ mb: 2 }}>
-                                    <Grid item xs={5}>
-                                        <TextField
-                                            fullWidth
-                                            label="Column Name"
-                                            value={col.name}
-                                            onChange={(e) => handleUpdateColumn(index, "name", e.target.value)}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={5}>
-                                        <FormControl fullWidth>
-                                            <InputLabel>Operation Type</InputLabel>
-                                            <Select
-                                                value={col.type}
-                                                onChange={(e) => handleOperationTypeChange(index, e.target.value)}
-                                            >
-                                                <MenuItem value="calculate">Calculate from other columns</MenuItem>
-                                                <MenuItem value="concatenate">Concatenate from other columns</MenuItem>
-                                                <MenuItem value="conditional">Conditional values</MenuItem>
-                                                <MenuItem value="pattern">Pattern extraction</MenuItem>
-                                            </Select>
-                                        </FormControl>
-                                    </Grid>
-                                    <Grid item xs={2}>
+                <Box sx={{ 
+                    backgroundColor: '#ffffff',
+                    borderRadius: 1,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    padding: 3
+                }}>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        mb: 3
+                    }}>
+                        <Typography variant="h6" sx={{ 
+                            color: "#2C3E50",
+                            borderBottom: '3px solid #B82132',
+                            display: 'inline-block',
+                            paddingBottom: '8px'
+                        }}>
+                            Column Operations
+                        </Typography>
+                        
+                        <Button 
+                            onClick={handleAddColumn}
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            sx={{
+                                backgroundColor: "#B82132",
+                                '&:hover': {
+                                    backgroundColor: "#961a28",
+                                },
+                            }}
+                        >
+                            Add New Column Operation
+                        </Button>
+                    </Box>
+
+                    {newColumns.length === 0 ? (
+                        <Box sx={{ 
+                            textAlign: 'center', 
+                            py: 4,
+                            backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                            borderRadius: 1
+                        }}>
+                            <Typography color="textSecondary">
+                                No column operations added yet. Click "Add New Column Operation" to begin.
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <>
+                            {newColumns.map((col, index) => (
+                                <Card 
+                                    key={index} 
+                                    sx={{ 
+                                        mb: 3,
+                                        border: '1px solid #eee',
+                                        '&:hover': {
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                        }
+                                    }}
+                                >
+                                    <CardContent>
+                                        <Box sx={{ mb: 2 }}>
+                                            <FormControl fullWidth>
+                                                <InputLabel>Operation Type</InputLabel>
+                                                <Select
+                                                    value={col.type}
+                                                    onChange={(e) => handleOperationTypeChange(index, e.target.value)}
+                                                    sx={{
+                                                        mb: 2,
+                                                        '&.MuiOutlinedInput-root': {
+                                                            '&:hover fieldset': {
+                                                                borderColor: '#B82132',
+                                                            },
+                                                            '&.Mui-focused fieldset': {
+                                                                borderColor: '#B82132',
+                                                            },
+                                                        },
+                                                    }}
+                                                >
+                                                    <MenuItem value="calculate">Calculate</MenuItem>
+                                                    <MenuItem value="concatenate">Concatenate</MenuItem>
+                                                    <MenuItem value="conditional">Conditional</MenuItem>
+                                                    <MenuItem value="pattern">Pattern</MenuItem>
+                                                </Select>
+                                            </FormControl>
+                                        </Box>
+                                        {renderColumnParameters(col, index)}
+                                    </CardContent>
+                                    <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
                                         <IconButton 
                                             onClick={() => handleRemoveColumn(index)}
                                             color="error"
-                                            aria-label="Remove entire column operation"
-                                            title="Remove entire column operation"
-                                            sx={{ mt: 1 }}
+                                            aria-label="Remove operation"
                                         >
                                             <DeleteIcon />
                                         </IconButton>
-                                    </Grid>
-                                </Grid>
+                                    </CardActions>
+                                </Card>
+                            ))}
 
-                                <Box sx={{ mt: 2 }}>
-                                    {renderColumnParameters(col, index)}
-                                </Box>
-                            </CardContent>
-                            <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+                            {/* Action Buttons */}
+                            <Box sx={{ 
+                                display: 'flex', 
+                                gap: 2, 
+                                justifyContent: 'flex-end',
+                                mt: 3 
+                            }}>
                                 <Button
                                     variant="outlined"
                                     startIcon={<PreviewIcon />}
-                                    onClick={() => handlePreview(index)}
+                                    onClick={handlePreview}
                                     disabled={isSubmitting}
-                                    aria-label="Preview column changes"
+                                    sx={{
+                                        color: '#2C3E50',
+                                        borderColor: '#2C3E50',
+                                        '&:hover': {
+                                            borderColor: '#B82132',
+                                            color: '#B82132'
+                                        }
+                                    }}
                                 >
-                                    Preview Changes
+                                    Preview All Changes
                                 </Button>
                                 <Button
                                     variant="contained"
-                                    color="primary"
-                                    onClick={() => handleSubmitOperations(index)}
+                                    onClick={handleSubmitOperations}
                                     disabled={isSubmitting}
-                                    aria-label="Apply column operation"
+                                    sx={{
+                                        backgroundColor: "#B82132",
+                                        '&:hover': {
+                                            backgroundColor: "#961a28",
+                                        },
+                                    }}
                                 >
-                                    {isSubmitting ? 'Applying...' : 'Apply Changes'}
+                                    {isSubmitting ? (
+                                        <CircularProgress size={24} sx={{ color: 'white' }} />
+                                    ) : (
+                                        'Apply All Changes'
+                                    )}
                                 </Button>
-                            </CardActions>
-                        </Card>
-                    ))}
-                    
-                    <Button 
-                        onClick={handleAddColumn} 
-                        variant="outlined" 
-                        startIcon={<AddIcon />}
-                        sx={{ mt: 2 }}
-                        aria-label="Add new column operation"
-                    >
-                        Add New Column Operation
-                    </Button>
-                </>
+                            </Box>
+                        </>
+                    )}
+                </Box>
             )}
 
             <PreviewDialog />

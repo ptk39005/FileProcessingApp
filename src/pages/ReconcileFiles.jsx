@@ -261,7 +261,17 @@ const ReconcileFiles = () => {
                   </InputAdornment>
                 ),
               }}
-              sx={{ mb: 2 }}
+              sx={{ 
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#B82132',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#B82132',
+                  },
+                },
+              }}
             />
             <List>
               {files.map((file) => (
@@ -271,6 +281,12 @@ const ReconcileFiles = () => {
                       <Checkbox
                         checked={selectedFiles.some(f => f.fileName === file.fileName)}
                         onChange={() => handleFileSelection(file)}
+                        sx={{
+                          color: "#B82132",
+                          '&.Mui-checked': {
+                            color: "#B82132",
+                          },
+                        }}
                       />
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography>{file.fileName}</Typography>
@@ -655,11 +671,26 @@ const ReconcileFiles = () => {
           </Box>
         )}
 
-        <Typography variant="h4" gutterBottom sx={{ textAlign: "center", mb: 4 }}>
+        <Typography variant="h4" gutterBottom sx={{ 
+          textAlign: "center", 
+          mb: 4,
+          color: '#2C3E50'
+        }}>
           Reconcile Files
         </Typography>
 
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        <Stepper 
+          activeStep={activeStep} 
+          sx={{ 
+            mb: 4,
+            '& .MuiStepIcon-root.Mui-active': {
+              color: '#B82132',
+            },
+            '& .MuiStepIcon-root.Mui-completed': {
+              color: '#B82132',
+            },
+          }}
+        >
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -678,12 +709,18 @@ const ReconcileFiles = () => {
             Back
           </Button>
           <Button
-            onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
             variant="contained"
+            onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
             disabled={
               (activeStep === 0 && selectedFiles.length !== 2) ||
               (activeStep === steps.length - 1 && isLoading)
             }
+            sx={{
+              backgroundColor: '#B82132',
+              '&:hover': {
+                backgroundColor: '#8E1A28',
+              },
+            }}
           >
             {activeStep === steps.length - 1 ? (
               isLoading ? <CircularProgress size={24} /> : "Submit"

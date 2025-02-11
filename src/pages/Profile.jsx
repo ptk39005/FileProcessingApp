@@ -90,7 +90,7 @@ const Profile = () => {
             width: 120,
             height: 120,
             margin: '0 auto 16px',
-            bgcolor: user.avatarUrl ? 'transparent' : '#003366',
+            bgcolor: user.avatarUrl ? 'transparent' : '#B82132',
             borderRadius: '12px',
           }}
         >
@@ -110,7 +110,7 @@ const Profile = () => {
           )}
         </Avatar>
 
-        <Typography variant="h4" sx={{ color: '#003366', fontWeight: 700 }}>
+        <Typography variant="h4" sx={{ color: '#2C3E50', fontWeight: 700 }}>
           {user.name || 'N/A'}
         </Typography>
         <Typography
@@ -138,11 +138,11 @@ const Profile = () => {
             variant="h6"
             sx={{
               fontWeight: 600,
-              color: '#003366',
+              color: '#2C3E50',
               marginBottom: 2,
             }}
           >
-            Upload History
+            Files History
           </Typography>
 
           {uploadHistory.length > 0 ? (
@@ -185,12 +185,16 @@ const Profile = () => {
                     <Button
                       variant="outlined"
                       sx={{
-                        color: '#0066cc',
-                        borderColor: '#0066cc',
+                        color: '#B82132',
+                        borderColor: '#B82132',
                         borderRadius: '8px',
                         padding: '5px 15px',
                         fontSize: '12px',
                         textTransform: 'none',
+                        '&:hover': {
+                          borderColor: '#8E1A28',
+                          color: '#8E1A28',
+                        },
                       }}
                       href={file.downloadUrl}
                       target="_blank"
@@ -219,10 +223,14 @@ const Profile = () => {
               sx={{
                 marginTop: 2,
                 borderRadius: '8px',
-                color: '#0066cc',
-                borderColor: '#0066cc',
+                color: '#B82132',
+                borderColor: '#B82132',
                 fontSize: '14px',
                 textTransform: 'none',
+                '&:hover': {
+                  borderColor: '#8E1A28',
+                  color: '#8E1A28',
+                },
               }}
               onClick={handleShowMore}
             >

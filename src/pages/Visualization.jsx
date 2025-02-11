@@ -559,6 +559,34 @@ const Visualization = () => {
         );
     };
 
+    // Update button styling
+    const buttonSx = {
+        backgroundColor: '#B82132',
+        '&:hover': {
+            backgroundColor: '#8E1A28',
+        }
+    };
+
+    // Update search field styling
+    const searchFieldSx = {
+        '& .MuiOutlinedInput-root': {
+            '&:hover fieldset': {
+                borderColor: '#B82132',
+            },
+            '&.Mui-focused fieldset': {
+                borderColor: '#B82132',
+            },
+        }
+    };
+
+    // Update checkbox styling
+    const checkboxSx = {
+        color: "#B82132",
+        '&.Mui-checked': {
+            color: "#B82132",
+        }
+    };
+
     return (
         <NavigationBar>
             <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -584,7 +612,7 @@ const Visualization = () => {
                                 </InputAdornment>
                             ),
                         }}
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 2, ...searchFieldSx }}
                     />
 
                     {isLoading ? (
@@ -606,6 +634,7 @@ const Visualization = () => {
                                             <Checkbox
                                                 checked={selectedFile?.fileName === file.fileName}
                                                 onChange={() => handleFileSelection(file)}
+                                                sx={checkboxSx}
                                             />
                                             <Tooltip title={file.fileName} arrow>
                                                 <Typography

@@ -18,54 +18,78 @@ import axios from "axios";
 import NavigationBar from "../components/NavigationBar";
 import { uploadFileToFirebase, notifyBackendAfterUpload } from "../services/api";
 
+// Updated theme constants to match NavigationBar
+const THEME_COLORS = {
+  primary: "#2C3E50",      // Dark blue from navbar
+  secondary: "#B82132",    // Brand red
+  background: "#ffffff",   // Clean white
+  secondaryBackground: "rgba(44, 62, 80, 0.04)", // Light blue-grey
+  text: "#2C3E50",        // Dark blue text
+  hover: "rgba(184, 33, 50, 0.08)" // Light red hover effect
+};
+
 const FileUploadFlow = () => {
   const [fileDetails, setFileDetails] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState({}); // Track individual file upload status
   const [notifications, setNotifications] = useState([]);
 
   const email = localStorage.getItem('email');
 
+  const theme = THEME_COLORS;
+
   const handleUpload = async () => {
-    const email = localStorage.getItem("email"); // Get user email
+    const email = localStorage.getItem("email");
     if (!email) {
-        setNotifications([{ type: "error", text: "User email not found. Please log in." }]);
-        return;
+      setNotifications([{ type: "error", text: "User email not found. Please log in." }]);
+      return;
     }
 
     const finalizedFiles = fileDetails.filter((file) => file.finalized);
     if (finalizedFiles.length === 0) {
-        setNotifications([{ type: "error", text: "Please finalize at least one file for upload." }]);
-        return;
+      setNotifications([{ type: "error", text: "Please finalize at least one file for upload." }]);
+      return;
     }
 
     setIsLoading(true);
-    const uploadedFiles = {}; // Object to store files with keys
+    const uploadedFiles = {};
 
     try {
-        for (const fileDetail of finalizedFiles) {
-            const { file } = fileDetail;
+      for (const fileDetail of finalizedFiles) {
+        const { file, name } = fileDetail;
+        setUploadingFiles(prev => ({ ...prev, [name]: true }));
 
-            // Step 1: Upload file to Firebase Storage
-            const { fileName, fileUrl } = await uploadFileToFirebase(file);
-            console.log(`File uploaded: ${fileName}, URL: ${fileUrl}`);
+        // Step 1: Upload file to Firebase Storage
+        const { fileName, fileUrl } = await uploadFileToFirebase(file);
+        
+        // Store in an object using fileName as the key
+        uploadedFiles[fileName] = { fileName, fileUrl };
+        
+        setUploadingFiles(prev => ({ ...prev, [name]: false }));
+        setNotifications(prev => [...prev, { 
+          type: "success", 
+          text: `${fileName} uploaded successfully!` 
+        }]);
+      }
 
-            // Store in an object using fileName as the key
-            uploadedFiles[fileName] = { fileName, fileUrl };
-        }
+      // Step 2: Notify backend after all uploads
+      await notifyBackendAfterUpload(uploadedFiles, email);
+      setNotifications(prev => [...prev, { 
+        type: "info", 
+        text: "All files are being processed. Please wait 2 minutes before performing any operations." 
+      }]);
 
-        console.log("✅ All Files Uploaded. Final Payload:", uploadedFiles);
-
-        // Step 2: Notify backend after all uploads
-        await notifyBackendAfterUpload(uploadedFiles, email);
-        setNotifications([{ type: "success", text: "Files uploaded & processing started successfully!" }]);
+      // Clear the file details after successful upload
+      setFileDetails([]);
+      setUploadingFiles({});
 
     } catch (error) {
-        console.error("🚨 Upload error:", error);
-        setNotifications([{ type: "error", text: error.message || "Error uploading files." }]);
+      console.error("Upload error:", error);
+      setNotifications([{ type: "error", text: error.message || "Error uploading files." }]);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
-};
+  };
 
   // Handle File Selection
   const handleDrop = (acceptedFiles) => {
@@ -131,7 +155,6 @@ const FileUploadFlow = () => {
         }
 
         start = end;
-        console.log(`Uploaded ${Math.round((start / file.size) * 100)}% of ${name}`);
       }
 
       setNotifications([{ type: "success", text: `File ${name} uploaded successfully!` }]);
@@ -142,17 +165,48 @@ const FileUploadFlow = () => {
   };
 
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     onDrop: handleDrop,
-    accept: ".xls,.xlsx,.csv",
+    accept: {
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+    },
+    onDropRejected: (fileRejections) => {
+      setNotifications([{ 
+        type: "error", 
+        text: "Only CSV and Excel files (*.csv, *.xls, *.xlsx) are allowed." 
+      }]);
+    }
   });
 
   return (
     <NavigationBar>
-      <Container maxWidth="lg" sx={{ padding: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ textAlign: "center", mb: 4 }}>
-          File Upload
-        </Typography>
+      <Container 
+        maxWidth="lg" 
+        sx={{ 
+          padding: 4,
+          backgroundColor: theme.background,
+          color: theme.text,
+          minHeight: '100vh'
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+          <Typography 
+            variant="h4" 
+            gutterBottom 
+            sx={{ 
+              textAlign: "center", 
+              color: theme.text,
+              fontWeight: 600,
+              borderBottom: `3px solid ${theme.secondary}`,
+              display: 'inline-block',
+              paddingBottom: '8px'
+            }}
+          >
+            Upload Files
+          </Typography>
+        </Box>
 
         {/* Notifications */}
         {notifications.map((notification, index) => (
@@ -161,17 +215,23 @@ const FileUploadFlow = () => {
           </Alert>
         ))}
 
-        {/* Drag & Drop File Upload UI */}
+        {/* Updated Paper styles for drag & drop */}
         <Paper
           {...getRootProps()}
           elevation={3}
           sx={{
-            border: "2px dashed #1976d2",
+            border: `2px dashed ${theme.secondary}`,
             borderRadius: 2,
             p: 4,
             textAlign: "center",
-            backgroundColor: isDragActive ? "#e3f2fd" : "#f5f5f5",
-            transition: "background-color 0.3s ease",
+            backgroundColor: isDragActive ? 
+              theme.secondaryBackground : 
+              theme.background,
+            transition: "all 0.3s ease",
+            color: theme.text,
+            '&:hover': {
+              backgroundColor: theme.hover
+            }
           }}
         >
           <input {...getInputProps()} />
@@ -190,9 +250,15 @@ const FileUploadFlow = () => {
               <Button
                 variant="contained"
                 startIcon={<CloudUploadIcon />}
-                sx={{ mt: 2 }}
+                sx={{ 
+                  mt: 2,
+                  backgroundColor: theme.secondary,
+                  '&:hover': {
+                    backgroundColor: '#961a28' // Darker red on hover
+                  }
+                }}
               >
-                Browse Files
+                Select Files
               </Button>
             </>
           )}
@@ -201,7 +267,7 @@ const FileUploadFlow = () => {
         {/* File List & Finalization */}
         {fileDetails.length > 0 && (
           <Box mt={4}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2, color: theme.text }}>
               Selected Files
             </Typography>
             <Grid container spacing={2}>
@@ -214,6 +280,12 @@ const FileUploadFlow = () => {
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "flex-start",
+                      backgroundColor: theme.background,
+                      border: `1px solid rgba(0, 0, 0, 0.08)`,
+                      color: theme.text,
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }
                     }}
                   >
                     <TextField
@@ -222,39 +294,87 @@ const FileUploadFlow = () => {
                       value={fileDetail.name}
                       onChange={(e) => handleFileNameChange(index, e.target.value)}
                       fullWidth
-                      sx={{ mb: 2 }}
+                      sx={{ 
+                        mb: 2,
+                        '& .MuiOutlinedInput-root': {
+                          color: theme.text,
+                          '& fieldset': {
+                            borderColor: theme.text + '40',
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: theme.text + '99',
+                        }
+                      }}
                     />
                     <FormControlLabel
                       control={
                         <Checkbox
                           checked={fileDetail.finalized}
                           onChange={(e) => handleFileFinalization(index, e.target.checked)}
+                          sx={{
+                            color: theme.primary,
+                            '&.Mui-checked': {
+                              color: theme.primary,
+                            },
+                          }}
                         />
                       }
                       label="Finalize"
+                      sx={{ color: theme.text }}
                     />
+                    {uploadingFiles[fileDetail.name] && (
+                      <LinearProgress 
+                        sx={{ 
+                          width: '100%', 
+                          mt: 1,
+                          '& .MuiLinearProgress-bar': {
+                            backgroundColor: theme.primary
+                          }
+                        }} 
+                      />
+                    )}
                   </Paper>
                 </Grid>
               ))}
             </Grid>
 
-            {/* Upload Button */}
+            {/* Updated Upload Button */}
             <Box textAlign="center" mt={4}>
               <Button
                 variant="contained"
                 color="primary"
                 onClick={handleUpload}
                 disabled={isLoading}
-                sx={{ px: 4, py: 1.5 }}
+                sx={{ 
+                  px: 4, 
+                  py: 1.5,
+                  backgroundColor: theme.secondary,
+                  '&:hover': {
+                    backgroundColor: '#961a28'
+                  },
+                  '&:disabled': {
+                    backgroundColor: 'rgba(184, 33, 50, 0.5)'
+                  }
+                }}
               >
-                Upload selected files
+                Upload Files
               </Button>
             </Box>
           </Box>
         )}
 
-        {/* Loading Indicator */}
-        {isLoading && <LinearProgress sx={{ marginTop: 2 }} />}
+        {/* Updated Progress Bar */}
+        {isLoading && (
+          <LinearProgress 
+            sx={{ 
+              marginTop: 2,
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: theme.secondary
+              }
+            }} 
+          />
+        )}
       </Container>
     </NavigationBar>
   );

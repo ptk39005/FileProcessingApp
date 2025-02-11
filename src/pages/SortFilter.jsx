@@ -268,7 +268,10 @@ const SortAndFilter = () => {
                 )}
 
 
-                <Typography variant="h4" textAlign="center" gutterBottom>
+                <Typography variant="h4" textAlign="center" gutterBottom sx={{ 
+                    mb: 4,
+                    color: '#2C3E50'
+                }}>
                     Sort & Filter
                 </Typography>
 
@@ -284,12 +287,31 @@ const SortAndFilter = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
-                                    handleSearch(); // Trigger search when Enter is pressed
+                                    handleSearch();
                                 }
                             }}
-                            sx={{ marginRight: 2 }}
+                            sx={{ 
+                                marginRight: 2,
+                                '& .MuiOutlinedInput-root': {
+                                    '&:hover fieldset': {
+                                        borderColor: '#B82132',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#B82132',
+                                    },
+                                },
+                            }}
                         />
-                        <Button variant="contained" onClick={handleSearch}>
+                        <Button 
+                            variant="contained" 
+                            onClick={handleSearch}
+                            sx={{
+                                backgroundColor: '#B82132',
+                                '&:hover': {
+                                    backgroundColor: '#8E1A28',
+                                },
+                            }}
+                        >
                             Search
                         </Button>
                     </Box>
@@ -405,8 +427,16 @@ const SortAndFilter = () => {
                                                 onChange={(e) =>
                                                     handleUpdateSortConfig(index, "column", e.target.value)
                                                 }
+                                                sx={{
+                                                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: '#B82132',
+                                                    },
+                                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: '#B82132',
+                                                    },
+                                                }}
                                             >
-                                                {comparableColumns.map((col) => (
+                                                {columns.map((col) => (
                                                     <MenuItem key={col} value={col}>
                                                         {col}
                                                     </MenuItem>
@@ -434,6 +464,14 @@ const SortAndFilter = () => {
                                     onClick={handleAddSortConfig}
                                     variant="outlined"
                                     startIcon={<Add />}
+                                    sx={{
+                                        borderColor: '#B82132',
+                                        color: '#B82132',
+                                        '&:hover': {
+                                            borderColor: '#8E1A28',
+                                            backgroundColor: 'rgba(184, 33, 50, 0.04)',
+                                        },
+                                    }}
                                 >
                                     Add Sort Rule
                                 </Button>
@@ -453,6 +491,14 @@ const SortAndFilter = () => {
                                                 onChange={(e) =>
                                                     handleUpdateFilterConfig(index, "column", e.target.value)
                                                 }
+                                                sx={{
+                                                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: '#B82132',
+                                                    },
+                                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: '#B82132',
+                                                    },
+                                                }}
                                             >
                                                 {columns.map((col) => (
                                                     <MenuItem key={col} value={col}>
@@ -462,33 +508,33 @@ const SortAndFilter = () => {
                                             </Select>
                                         </FormControl>
                                         <FormControl sx={{ flex: 1 }}>
-    <InputLabel>Criteria</InputLabel>
-    <Select
-        value={config.criteria}
-        onChange={(e) =>
-            handleUpdateFilterConfig(index, "criteria", e.target.value)
-        }
-    >
-        {[
-            "equals",
-            "does not equal",
-            "greater than",
-            "greater than or equal to",
-            "less than",
-            "less than or equal to",
-            "begins with",
-            "does not begin with",
-            "ends with",
-            "does not end with",
-            "contains",
-            "does not contain",
-        ].map((crit) => (
-            <MenuItem key={crit} value={crit}>
-                {crit}
-            </MenuItem>
-        ))}
-    </Select>
-</FormControl>
+                                            <InputLabel>Criteria</InputLabel>
+                                            <Select
+                                                value={config.criteria}
+                                                onChange={(e) =>
+                                                    handleUpdateFilterConfig(index, "criteria", e.target.value)
+                                                }
+                                            >
+                                                {[
+                                                    "equals",
+                                                    "does not equal",
+                                                    "greater than",
+                                                    "greater than or equal to",
+                                                    "less than",
+                                                    "less than or equal to",
+                                                    "begins with",
+                                                    "does not begin with",
+                                                    "ends with",
+                                                    "does not end with",
+                                                    "contains",
+                                                    "does not contain",
+                                                ].map((crit) => (
+                                                    <MenuItem key={crit} value={crit}>
+                                                        {crit}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
 
                                         <TextField
                                             label="Value"
@@ -552,10 +598,30 @@ const SortAndFilter = () => {
 
                             {/* Combined Actions */}
                             <Box sx={{ mt: 4, display: "flex", gap: 2 }}>
-                                <Button onClick={handlePreviewCombined} variant="outlined">
+                                <Button 
+                                    onClick={handlePreviewCombined} 
+                                    variant="outlined"
+                                    sx={{
+                                        borderColor: '#B82132',
+                                        color: '#B82132',
+                                        '&:hover': {
+                                            borderColor: '#8E1A28',
+                                            backgroundColor: 'rgba(184, 33, 50, 0.04)',
+                                        },
+                                    }}
+                                >
                                     Preview Combined
                                 </Button>
-                                <Button onClick={handleSaveCombined} variant="contained">
+                                <Button 
+                                    onClick={handleSaveCombined} 
+                                    variant="contained"
+                                    sx={{
+                                        backgroundColor: '#B82132',
+                                        '&:hover': {
+                                            backgroundColor: '#8E1A28',
+                                        },
+                                    }}
+                                >
                                     Save Combined
                                 </Button>
                             </Box>
@@ -574,7 +640,6 @@ const SortAndFilter = () => {
                                     textAlign="center"
                                     sx={{ mt: 2 }}
                                 >
-                                    No data available for preview.
                                 </Typography>
                             )}
                         </>

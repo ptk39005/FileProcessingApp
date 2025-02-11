@@ -94,7 +94,15 @@ const FilesSection = ({
             </InputAdornment>
           ),
         }}
-        sx={{ marginBottom: 2 }}
+        sx={{ 
+          marginBottom: 2,
+          '& .MuiOutlinedInput-root': {
+            backgroundColor: '#f5f5f5',
+            '&:hover': {
+              backgroundColor: '#eeeeee',
+            },
+          }
+        }}
       />
 
       {/* Warning for insufficient selection */}
@@ -112,22 +120,31 @@ const FilesSection = ({
           </Typography>
         </Box>
       ) : displayedFiles.length > 0 ? (
-        <List>
-        {files.map((file) => (
-          <React.Fragment key={file.fileName}>
-            <ListItem
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <List sx={{ backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+          {files.map((file) => (
+            <React.Fragment key={file.fileName}>
+              <ListItem
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "48px minmax(200px, 1fr) 120px",
+                  gap: 2,
+                  padding: "8px 16px",
+                  '&:hover': {
+                    backgroundColor: '#eeeeee',
+                  },
+                }}
+              >
                 <Checkbox
                   checked={selectedFiles.some(
                     (selectedFile) => selectedFile.fileName === file.fileName
                   )}
                   onChange={() => handleFileSelection(file)}
+                  sx={{
+                    color: '#666666',
+                    '&.Mui-checked': {
+                      color: '#0066cc',
+                    },
+                  }}
                 />
                 <Tooltip title={file.fileName} arrow>
                   <Typography
@@ -136,28 +153,33 @@ const FilesSection = ({
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
-                      maxWidth: "300px",
                     }}
                   >
-                    {file.fileName} {/* Ensure you use a string */}
+                    {file.fileName}
                   </Typography>
                 </Tooltip>
-              </Box>
-              <Button
-                variant="outlined"
-                href={file.downloadUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Download
-              </Button>
-            </ListItem>
-            <Divider />
-          </React.Fragment>
-        ))}
-      </List>
-      
-      
+                <Button
+                  variant="outlined"
+                  href={file.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    borderRadius: "8px",
+                    color: "#0066cc",
+                    borderColor: "#0066cc",
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 102, 204, 0.04)',
+                      borderColor: "#0066cc",
+                    },
+                  }}
+                >
+                  Download
+                </Button>
+              </ListItem>
+              <Divider />
+            </React.Fragment>
+          ))}
+        </List>
       ) : (
         <Typography
           variant="body2"

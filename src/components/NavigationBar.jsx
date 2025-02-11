@@ -105,7 +105,11 @@ const NavigationBar = ({ children }) => {
       <CssBaseline />
       <AppBar
         position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: "#1a73e8" }}
+        sx={{ 
+          zIndex: (theme) => theme.zIndex.drawer + 1, 
+          backgroundColor: "#2C3E50",  // Updated to match dashboard's dark color
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'  // Enhanced shadow
+        }}
       >
         <Toolbar>
           <IconButton color="inherit" edge="start" sx={{ mr: 2 }} onClick={toggleSidebar}>
@@ -114,11 +118,16 @@ const NavigationBar = ({ children }) => {
           <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
             Dashboard
           </Typography>
-          <Typography variant="body1" sx={{ marginRight: 2, color: "white" }}>
+          <Typography variant="body1" sx={{ marginRight: 2, color: "#ffffff" }}>
             Hello, {email}
           </Typography>
           <IconButton color="inherit" onClick={handleProfileMenuClick}>
-            <Avatar sx={{ bgcolor: "#3f51b5" }}>
+            <Avatar sx={{ 
+              bgcolor: "#B82132",  // Updated to match brand color
+              '&:hover': {
+                bgcolor: '#961a28'  // Darker shade for hover
+              }
+            }}>
               <AccountCircleIcon />
             </Avatar>
           </IconButton>
@@ -151,13 +160,24 @@ const NavigationBar = ({ children }) => {
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             boxSizing: "border-box",
-            bgcolor: "background.paper",
-            borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+            bgcolor: "#ffffff",  // Clean white background
+            borderRight: "1px solid rgba(0, 0, 0, 0.08)",
+            color: "#2C3E50",    // Matching text color
           },
         }}
       >
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" component="h1" sx={{ fontWeight: "bold" }}>
+          <Typography 
+            variant="h6" 
+            component="h1" 
+            sx={{ 
+              fontWeight: 600,
+              color: "#2C3E50",
+              borderBottom: '3px solid #B82132',
+              display: 'inline-block',
+              paddingBottom: '8px'
+            }}
+          >
             Excel Operations
           </Typography>
         </Box>
@@ -169,11 +189,15 @@ const NavigationBar = ({ children }) => {
               onClick={() => handleMenuItemClick(item.path)}
               sx={{
                 "&:hover": {
-                  backgroundColor: (theme) => theme.palette.action.hover,
+                  backgroundColor: "rgba(184, 33, 50, 0.08)",  // Light red hover effect
                 },
                 borderRadius: 1,
                 mx: 1,
                 mb: 0.5,
+                color: "#2C3E50",
+                '& .MuiListItemIcon-root': {
+                  color: "#2C3E50",  // Icon color
+                }
               }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>

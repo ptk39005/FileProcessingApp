@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Container,
   Typography,
@@ -18,6 +18,11 @@ import {
   Select,
   MenuItem,
   InputLabel,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@mui/material";
 import { getUserFiles, getFileDetails, saveUpdatedFile, generateEditFilePreview } from "../services/api";
 import NavigationBar from "../components/NavigationBar";
@@ -35,7 +40,6 @@ const EditFile = () => {
   const [replaceExisting, setReplaceExisting] = useState(false);
   const [showCount, setShowCount] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState({});
@@ -44,6 +48,10 @@ const EditFile = () => {
   const [fileName, setFileName] = useState("");
 
   const { enqueueSnackbar } = useSnackbar();
+
+  const addNotification = useCallback((type, text) => {
+    enqueueSnackbar(text, { variant: type });
+  }, [enqueueSnackbar]);
 
   const toggleSheetSelection = (sheetName) => {
     setSelectedSheets((prev) => ({
@@ -68,8 +76,6 @@ const EditFile = () => {
     }));
   };
 
-  // Rest of the component
-
   // Fetch files from backend
   const fetchFiles = async () => {
     setIsLoading(true);
@@ -82,10 +88,10 @@ const EditFile = () => {
         setFiles(sortedFiles);
         setDisplayedFiles(sortedFiles.slice(0, showCount));
       } else {
-        setNotifications([{ type: "error", text: "Error fetching files." }]);
+        addNotification("error", "Error fetching files.");
       }
     } catch (error) {
-      setNotifications([{ type: "error", text: "Error fetching files." }]);
+      addNotification("error", "Error fetching files.");
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +127,6 @@ const EditFile = () => {
       },
     }));
   };
-
 
   const handleShowMore = () => {
     const newCount = showCount + 6;
@@ -179,7 +184,7 @@ const EditFile = () => {
           },
         });
       } else {
-        setNotifications([{ type: "error", text: "Invalid file details received." }]);
+        addNotification("error", "Invalid file details received.");
       }
 
       // Automatically set the default new filename
@@ -188,7 +193,7 @@ const EditFile = () => {
       setNewFileName(`${baseFileName}_EditedFile.${fileExtension}`);
       setEditDialogOpen(true);
     } catch (error) {
-      setNotifications([{ type: "error", text: "Error fetching file details." }]);
+      addNotification("error", "Error fetching file details.");
     } finally {
       setIsLoading(false);
     }
@@ -205,18 +210,8 @@ const EditFile = () => {
       return acc;
     }, {});
 
-    // const datetimeFormats = Object.entries(columnTypes).reduce((acc, [sheetName, types]) => {
-    //   acc[sheetName] = Object.entries(types).reduce((innerAcc, [column, type]) => {
-    //     if (type === "datetime") {
-    //       innerAcc[column] = selectedDateFormats[sheetName]?.[column] || "";
-    //     }
-    //     return innerAcc;
-    //   }, {});
-    //   return acc;
-    // }, {});
-
     if (Object.keys(sanitizedSelectedSheets).length === 0) {
-      setNotifications([{ type: "error", text: "No sheets or columns selected." }]);
+      addNotification("error", "No sheets or columns selected.");
       return;
     }
 
@@ -226,7 +221,6 @@ const EditFile = () => {
       const response = await generateEditFilePreview({
         fileName: selectedFile.fileName,
         selectedSheets: sanitizedSelectedSheets,
-        //datetimeFormats,
       });
 
       if (response.success && response.previewData) {
@@ -255,21 +249,16 @@ const EditFile = () => {
         });
 
         setPreviewData(sanitizedPreviewData);
-        //setColumnTypes(updatedColumnTypes);
         setPreviewDialogOpen(true);
       } else {
-        setNotifications([{ type: "error", text: response.error || "Failed to generate preview." }]);
+        throw new Error(response?.error || "Failed to generate preview.");
       }
     } catch (error) {
-      setNotifications([{ type: "error", text: "Error generating preview." }]);
-      console.error("Error in handlePreviewFile:", error);
+      addNotification("error", error.message || "Error generating preview.");
     } finally {
       setIsLoading(false);
     }
   };
-
-
-
 
   const handleSaveFile = async () => {
     const sanitizedSelectedSheets = Object.entries(selectedSheets).reduce((acc, [sheetName, sheetData]) => {
@@ -283,7 +272,7 @@ const EditFile = () => {
     }, {});
 
     if (Object.keys(sanitizedSelectedSheets).length === 0) {
-      setNotifications([{ type: "error", text: "No sheets or columns selected." }]);
+      addNotification("error", "No sheets or columns selected.");
       return;
     }
 
@@ -305,20 +294,18 @@ const EditFile = () => {
       const response = await saveUpdatedFile(payload);
 
       if (response.success) {
-        setNotifications([{ type: "success", text: "File updated successfully!" }]);
+        addNotification("success", "File updated successfully!");
         setEditDialogOpen(false);
         fetchFiles();
       } else {
-        setNotifications([{ type: "error", text: "Error saving the file." }]);
+        addNotification("error", "Error saving the file.");
       }
     } catch (error) {
-      setNotifications([{ type: "error", text: "Error saving the file." }]);
-      console.error("Save File Error:", error);
+      addNotification("error", "Error saving the file.");
     } finally {
       setIsLoading(false);
     }
   };
-
 
   return (
     <NavigationBar>
@@ -326,13 +313,6 @@ const EditFile = () => {
         <Typography variant="h4" gutterBottom>
           Edit Files
         </Typography>
-
-        {/* Notifications */}
-        {notifications.map((notification, index) => (
-          <Alert key={index} severity={notification.type} sx={{ marginBottom: 2 }}>
-            {notification.text}
-          </Alert>
-        ))}
 
         {/* Search Bar */}
         <Box sx={{ display: "flex", alignItems: "center", marginBottom: 3 }}>
@@ -410,67 +390,107 @@ const EditFile = () => {
             </Typography>
 
             {/* Sheet and Column Selections */}
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{ 
+              color: "#2C3E50",
+              borderBottom: '3px solid #B82132',
+              display: 'inline-block',
+              paddingBottom: '8px',
+              marginBottom: '24px'
+            }}>
               Sheet and Column Selections
             </Typography>
             <Box>
               {fileDetails?.fileType === "Excel" && fileDetails.sheets
                 ? Object.entries(fileDetails.sheets).map(([sheetName, sheetData]) => (
-                  <Box key={sheetName} sx={{ marginBottom: 4 }}>
-                    {/* Sheet Selection */}
+                  <Box key={sheetName} sx={{ 
+                    marginBottom: 4,
+                    backgroundColor: '#ffffff',
+                    borderRadius: 1,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    padding: 2
+                  }}>
+                    {/* Sheet Header */}
                     <FormControlLabel
                       control={
                         <Checkbox
                           checked={selectedSheets[sheetName]?.selected}
                           onChange={() => toggleSheetSelection(sheetName)}
+                          sx={{
+                            color: "#B82132",
+                            '&.Mui-checked': {
+                              color: "#B82132",
+                            },
+                          }}
                         />
                       }
-                      label={<Typography variant="h6">Sheet: {sheetName}</Typography>}
+                      label={<Typography variant="h6" sx={{ color: "#2C3E50" }}>Sheet: {sheetName}</Typography>}
                     />
-                    <Box sx={{ marginLeft: 4 }}>
-                      {/* Column Selection */}
-                      {sheetData.columns.map((column) => (
-                        <Box
-                          key={column}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            mb: 2,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <FormControlLabel
-                            control={
+
+                    <Table size="small" sx={{ mt: 2 }}>
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                          <TableCell width="50px" sx={{ color: '#2C3E50', fontWeight: 'bold' }}>Select</TableCell>
+                          <TableCell sx={{ color: '#2C3E50', fontWeight: 'bold' }}>Column Name</TableCell>
+                          <TableCell width="200px" sx={{ color: '#2C3E50', fontWeight: 'bold' }}>Data Type</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {sheetData.columns.map((column) => (
+                          <TableRow 
+                            key={column}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.02)'
+                              }
+                            }}
+                          >
+                            <TableCell>
                               <Checkbox
                                 checked={selectedSheets[sheetName]?.columns.includes(column)}
                                 onChange={() => toggleColumnSelection(sheetName, column)}
                                 disabled={!selectedSheets[sheetName]?.selected}
+                                sx={{
+                                  color: "#B82132",
+                                  '&.Mui-checked': {
+                                    color: "#B82132",
+                                  },
+                                }}
                               />
-                            }
-                            label={column}
-                          />
-                          {/* Data Type Dropdown */}
-                          {selectedSheets[sheetName]?.columns.includes(column) && (
-                            <FormControl sx={{ minWidth: 180 }}>
-                              <InputLabel>Data Type</InputLabel>
-                              <Select
-                                value={columnTypes[sheetName]?.[column] || "string"}
-                                onChange={(e) =>
-                                  handleDataTypeChange(sheetName, column, e.target.value)
-                                }
-                              >
-                                <MenuItem value="string">String</MenuItem>
-                                <MenuItem value="integer">Integer</MenuItem>
-                                <MenuItem value="float">Float</MenuItem>
-                                <MenuItem value="boolean">Boolean</MenuItem>
-                                <MenuItem value="date">Date</MenuItem>
-                              </Select>
-                            </FormControl>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography sx={{ color: '#2C3E50' }}>{column}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              <FormControl fullWidth size="small">
+                                <Select
+                                  value={columnTypes[sheetName]?.[column] || "string"}
+                                  onChange={(e) =>
+                                    handleDataTypeChange(sheetName, column, e.target.value)
+                                  }
+                                  disabled={!selectedSheets[sheetName]?.columns.includes(column)}
+                                  sx={{
+                                    '&.MuiOutlinedInput-root': {
+                                      '&:hover fieldset': {
+                                        borderColor: '#B82132',
+                                      },
+                                      '&.Mui-focused fieldset': {
+                                        borderColor: '#B82132',
+                                      },
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="string">String</MenuItem>
+                                  <MenuItem value="integer">Integer</MenuItem>
+                                  <MenuItem value="float">Float</MenuItem>
+                                  <MenuItem value="boolean">Boolean</MenuItem>
+                                  <MenuItem value="date">Date</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </Box>
                 ))
                 : fileDetails?.fileType === "CSV" &&
@@ -517,7 +537,16 @@ const EditFile = () => {
             </Box>
 
             {/* Action Section */}
-            <Box sx={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+            <Box sx={{ 
+              marginTop: 4, 
+              display: "flex", 
+              flexDirection: "column", 
+              gap: 3,
+              backgroundColor: '#ffffff',
+              borderRadius: 1,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              padding: 3
+            }}>
               {/* Replace Existing Option */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <FormControlLabel
@@ -566,20 +595,34 @@ const EditFile = () => {
 
               {/* Action Buttons */}
               <Box sx={{ display: "flex", gap: 2 }}>
-                <Button variant="contained" color="primary" onClick={handlePreviewFile}>
+                <Button 
+                  variant="contained" 
+                  onClick={handlePreviewFile}
+                  sx={{
+                    backgroundColor: "#2C3E50",
+                    '&:hover': {
+                      backgroundColor: "#1a252f",
+                    },
+                  }}
+                >
                   Preview File
                 </Button>
-                <Button variant="contained" color="success" onClick={handleSaveFile}>
+                <Button 
+                  variant="contained" 
+                  onClick={handleSaveFile}
+                  sx={{
+                    backgroundColor: "#B82132",
+                    '&:hover': {
+                      backgroundColor: "#961a28",
+                    },
+                  }}
+                >
                   Save File
                 </Button>
               </Box>
             </Box>
-
-
-
           </Box>
         )}
-
 
         {/* Preview Section */}
         {previewDialogOpen && previewData && columnTypes && (
@@ -606,7 +649,6 @@ const EditFile = () => {
             open={previewDialogOpen}
             onClose={() => setPreviewDialogOpen(false)}
           />
-
         )}
 
         {/* Backup Preview Section */}
@@ -623,7 +665,6 @@ const EditFile = () => {
             onClose={() => setPreviewDialogOpen(false)}
           />
         )}
-
       </Container>
     </NavigationBar>
   );

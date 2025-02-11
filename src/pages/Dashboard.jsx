@@ -132,10 +132,22 @@ const Dashboard = () => {
         ) : (
           <>
             {/* Uploaded Files */}
-            <Typography variant="h4" gutterBottom>
-              Uploaded Files
-            </Typography>
-            <TableContainer component={Paper} sx={{ mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: 3, mt: 4 }}>
+              <Typography 
+                variant="h4" 
+                gutterBottom
+                sx={{
+                  fontWeight: 600,
+                  color: '#2C3E50',
+                  borderBottom: '3px solid #B82132',
+                  display: 'inline-block',
+                  paddingBottom: '8px'
+                }}
+              >
+                Uploaded Files
+              </Typography>
+            </Box>
+            <TableContainer component={Paper} sx={{ mb: 5, boxShadow: 3 }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -153,6 +165,7 @@ const Dashboard = () => {
                         <Stack direction="row" spacing={2}>
                           <Button
                             variant="contained"
+                            color="#B82132"
                             onClick={() => handleDownload(file.downloadUrl)}
                             disabled={!file.downloadUrl}
                           >
@@ -160,7 +173,7 @@ const Dashboard = () => {
                           </Button>
                           <Button
                             variant="outlined"
-                            color="error"
+                            color="#B82132"
                             startIcon={<DeleteIcon />}
                             onClick={() => handleDelete(file.fileName, 'uploaded_files')}
                           >
@@ -175,10 +188,22 @@ const Dashboard = () => {
             </TableContainer>
 
             {/* Processed Files */}
-            <Typography variant="h4" gutterBottom>
-              Processed Files
-            </Typography>
-            <TableContainer component={Paper}>
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
+              <Typography 
+                variant="h4" 
+                gutterBottom
+                sx={{
+                  fontWeight: 600,
+                  color: '#2C3E50',
+                  borderBottom: '3px solid #B82132',
+                  display: 'inline-block',
+                  paddingBottom: '8px'
+                }}
+              >
+                Processed Files
+              </Typography>
+            </Box>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -196,6 +221,7 @@ const Dashboard = () => {
                         <Stack direction="row" spacing={2}>
                           <Button
                             variant="contained"
+                            color="#B82132"
                             onClick={() => handleDownload(file.downloadUrl)}
                             disabled={!file.downloadUrl}
                           >
@@ -203,7 +229,7 @@ const Dashboard = () => {
                           </Button>
                           <Button
                             variant="outlined"
-                            color="error"
+                            color="#B82132"
                             startIcon={<DeleteIcon />}
                             onClick={() => handleDelete(file.fileName, 'processed_files')}
                           >
