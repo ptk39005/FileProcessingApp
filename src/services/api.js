@@ -3,8 +3,8 @@ import { storage } from "./firebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // Create an Axios instance with base URL and common configurations
 const API = axios.create({
-   baseURL: 'https://backend-env.eba-sgvmg8bp.ap-south-1.elasticbeanstalk.com/',
-  //baseURL : "http://127.0.0.1:5000",
+   //baseURL: 'https://backend-env.eba-sgvmg8bp.ap-south-1.elasticbeanstalk.com/',
+  baseURL : "http://127.0.0.1:5000",
     headers: {
         'Content-Type': 'application/json',
     },
@@ -55,7 +55,7 @@ const handleApiError = (error, action) => {
  */
 export const login = async (data) => {
     try {
-        const response = await API.post('/api/login', data);
+        const response = await API.post('/api/login/', data);
 
         // Save the token and email in localStorage upon successful login
         if (response.data?.token && response.data?.email) {
@@ -107,7 +107,7 @@ export const logout = async () => {
  */
 export const uploadFiles = async (formData) => {
     try {
-        const response = await API.post('/api/upload_files', formData, {
+        const response = await API.post('/api/upload_files/', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
         return response.data;
@@ -162,7 +162,7 @@ export const notifyBackendAfterUpload = async (uploadedFiles, email) => {
     console.log(uploadFiles);
     console.log(email);
     const response = await API.post(
-      "/api/process_uploaded_files",
+      "/api/process_uploaded_files/",
       { uploadedFiles, email },
       { headers: { "Content-Type": "application/json" } } // Ensure JSON is sent
   );
@@ -183,7 +183,7 @@ export const notifyBackendAfterUpload = async (uploadedFiles, email) => {
  */
 export const selectSheets = async (fileData) => {
     try {
-        const response = await API.post('/api/select_sheets', { file_data: fileData });
+        const response = await API.post('/api/select_sheets/', { file_data: fileData });
         return response.data;
     } catch (error) {
         handleApiError(error, 'Select Sheets');
@@ -197,7 +197,7 @@ export const selectSheets = async (fileData) => {
  */
 export const columnSelection = async (fileData) => {
     try {
-        const response = await API.post('/api/column_selection', { file_data: fileData });
+        const response = await API.post('/api/column_selection/', { file_data: fileData });
         return response.data;
     } catch (error) {
         handleApiError(error, 'Column Selection');
@@ -212,7 +212,7 @@ export const columnSelection = async (fileData) => {
  */
 export const finalUpload = async (fileData, email) => {
     try {
-        const response = await API.post('/api/final_upload', { file_data: fileData, email });
+        const response = await API.post('/api/final_upload/', { file_data: fileData, email });
         return response.data;
     } catch (error) {
         handleApiError(error, 'Final Upload');
@@ -226,8 +226,8 @@ export const finalUpload = async (fileData, email) => {
  */
 export const fetchSheetsAndColumns = async (fileData) => {
     try {
-        const sheetResponse = await API.post('/api/select_sheets', { file_data: fileData });
-        const columnResponse = await API.post('/api/column_selection', { file_data: fileData });
+        const sheetResponse = await API.post('/api/select_sheets/', { file_data: fileData });
+        const columnResponse = await API.post('/api/column_selection/', { file_data: fileData });
 
         return {
             sheets: sheetResponse,
@@ -246,7 +246,7 @@ export const fetchSheetsAndColumns = async (fileData) => {
  */
 export const uploadProcessedFiles = async (fileData, email) => {
     try {
-        const response = await API.post('/api/upload_processed_files', { file_data: fileData, email });
+        const response = await API.post('/api/upload_processed_files/', { file_data: fileData, email });
         return response.data;
     } catch (error) {
         handleApiError(error, 'Upload Processed Files');
@@ -262,7 +262,7 @@ export const uploadProcessedFiles = async (fileData, email) => {
  */
 export const register = async (data) => {
     try {
-        const response = await API.post('/api/register', data);
+        const response = await API.post('/api/register/', data);
         return response.data;
     } catch (error) {
         handleApiError(error, 'Registration');
@@ -276,7 +276,7 @@ export const register = async (data) => {
  */
 export const resetPassword = async (data) => {
     try {
-        const response = await API.post('/api/reset-password', data);
+        const response = await API.post('/api/reset-password/', data);
         return response.data;
     } catch (error) {
         handleApiError(error, 'Reset Password');
@@ -289,7 +289,7 @@ export const resetPassword = async (data) => {
  */
 export const requestPasswordReset = async (data) => {
     try {
-        const response = await API.post('/api/forgot-password', data);
+        const response = await API.post('/api/forgot-password/', data);
         return response.data;
     } catch (error) {
         handleApiError(error, 'Request Password Reset');
@@ -303,7 +303,7 @@ export const requestPasswordReset = async (data) => {
  */
 export const validateForgotPasswordOtp = async (data) => {
     try {
-        const response = await API.post('/api/validate-forgot-password-otp', data);
+        const response = await API.post('/api/validate-forgot-password-otp/', data);
         return response.data;
     } catch (error) {
         handleApiError(error, 'Validate Forgot Password OTP');
@@ -316,7 +316,7 @@ export const validateForgotPasswordOtp = async (data) => {
  */
 export const fetchHome = async () => {
     try {
-        const response = await API.get('/api/home');
+        const response = await API.get('/api/home/');
         return response.data;
     } catch (error) {
         handleApiError(error, 'Fetch Home Content');
@@ -342,7 +342,7 @@ export const getUserFiles = async () => {
  */
 export const getProcessedFiles = async () => {
     try {
-        const response = await API.get('api/list-files/processed');
+        const response = await API.get('api/list-files/processed/');
         return response.data;
     } catch (error) {
         handleApiError(error, 'Fetch Processed Files');
@@ -357,7 +357,7 @@ export const getProcessedFiles = async () => {
  */
 export const validateOtp = async (data) => {
     try {
-        const response = await API.post('/api/validate-otp', data);
+        const response = await API.post('/api/validate-otp/', data);
         return response.data;
     } catch (error) {
         handleApiError(error, 'Validate OTP');
@@ -367,7 +367,7 @@ export const validateOtp = async (data) => {
 export const getFileDetails = async (fileName) => {
     const email = localStorage.getItem('email');
     try {
-      const response = await API.post('/api/get-file-details', {
+      const response = await API.post('/api/get-file-details/', {
         fileName,
         email,
       });
@@ -385,7 +385,7 @@ export const saveUpdatedFile = async (payload) => {
             throw new Error('Email not found in local storage.');
         }
     
-        const response = await API.post('/api/edit-file/process', payload, {
+        const response = await API.post('/api/edit-file/process/', payload, {
             headers: {
                 'X-User-Email': email, // Send email in headers
             },
@@ -409,7 +409,7 @@ export const fetchUserProfile = async () => {
     }
 
     try {
-        const response = await API.get('/api/user', {
+        const response = await API.get('/api/user/', {
             headers: {
                 'X-User-Email': email, // Send email in headers
             },
@@ -433,7 +433,7 @@ export const generatePreview = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/preview/generate', payload, {
+      const response = await API.post('/api/preview/generate/', payload, {
         headers: {
           'X-User-Email': email,
         },
@@ -457,7 +457,7 @@ export const previewFileWithColumn = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/preview/generate/addColumn', payload, {
+      const response = await API.post('/api/preview/generate/addColumn/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json', // Restricting to JSON
@@ -482,7 +482,7 @@ export const mergeFiles = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/merge/files', payload, {
+      const response = await API.post('/api/merge/files/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -508,7 +508,7 @@ export const previewMergedFile = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/merge_files/preview', payload, {
+      const response = await API.post('/api/merge_files/preview/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -533,7 +533,7 @@ export const saveMergedFile = async (payload) => {
         throw new Error('Email not found in local storage.');
       }
 
-      const response = await API.post('/api/merge_files/merge', {
+      const response = await API.post('/api/merge_files/merge/', {
         ...payload,
         outputFileName: payload.outputFileName // Add this new field
       }, {
@@ -561,7 +561,7 @@ export const generatePivotTable = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/group_pivot/generate', payload, {
+      const response = await API.post('/api/group_pivot/generate/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -586,7 +586,7 @@ export const previewPivotTable = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/group_pivot/preview', payload, {
+      const response = await API.post('/api/group_pivot/preview/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -611,7 +611,7 @@ export const previewSortData = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/sort_filter/preview/sort', payload, {
+      const response = await API.post('/api/sort_filter/preview/sort/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -636,7 +636,7 @@ export const previewSortData = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/sort_filter/preview/filter', payload, {
+      const response = await API.post('/api/sort_filter/preview/filter/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -661,7 +661,7 @@ export const previewSortData = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/sort_filter/final/sort', payload, {
+      const response = await API.post('/api/sort_filter/final/sort/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -686,7 +686,7 @@ export const previewSortData = async (payload) => {
     }
   
     try {
-      const response = await API.post('/api/sort_filter/final/filter', payload, {
+      const response = await API.post('/api/sort_filter/final/filter/', payload, {
         headers: {
           'X-User-Email': email,
           'Accept': 'application/json',
@@ -702,7 +702,7 @@ export const previewSortData = async (payload) => {
   // Preview combined sort and filter data
 export const previewCombinedData = async (payload) => {
     try {
-      const response = await API.post('api/sort_filter/preview/combined', payload);
+      const response = await API.post('api/sort_filter/preview/combined/', payload);
       return response.data;
     } catch (error) {
       console.error('Error previewing combined data:', error.message);
@@ -713,7 +713,7 @@ export const previewCombinedData = async (payload) => {
   // Save combined sort and filter data
   export const saveCombinedData = async (payload) => {
     try {
-      const response = await API.post('api/sort_filter/final/combined', payload);
+      const response = await API.post('api/sort_filter/final/combined/', payload);
       return response.data;
     } catch (error) {
       console.error('Error saving combined data:', error.message);
@@ -733,7 +733,7 @@ export const generateEditFilePreview = async (payload) => {
   }
 
   try {
-    const response = await API.post('/api/edit-file/generate', payload, {
+    const response = await API.post('/api/edit-file/generate/', payload, {
       headers: {
         'X-User-Email': email,
       },
@@ -760,7 +760,7 @@ export const submitColumnOperations = async (fileName, sheet, operations, format
     }
 
     try {
-        const response = await API.post('/api/add_column/apply', {
+        const response = await API.post('/api/add_column/apply/', {
             fileName,
             sheet,
             operations,
@@ -787,7 +787,7 @@ export const submitColumnOperations = async (fileName, sheet, operations, format
  */
 export const previewColumnOperations = async (fileName, sheet, operations) => {
   try {
-      const response = await API.post('/api/add_column/preview', {
+      const response = await API.post('/api/add_column/preview/', {
           fileName,
           sheet,
           operations
@@ -808,7 +808,7 @@ export const previewColumnOperations = async (fileName, sheet, operations) => {
 */
 export const applyColumnOperations = async (fileName, sheet, operations, format = 'xlsx') => {
   try {
-      const response = await API.post('/api/add_column/apply', {
+      const response = await API.post('/api/add_column/apply/', {
           fileName,
           sheet,
           operations,
@@ -833,7 +833,7 @@ export const previewFormatting = async (fileName, sheet, formattingConfig) => {
   }
 
   try {
-      const response = await API.post('/api/formatting/preview', {
+      const response = await API.post('/api/formatting/preview/', {
           fileName,
           sheet,
           formattingConfig
@@ -864,7 +864,7 @@ export const applyFormatting = async (fileName, sheet, formattingConfig) => {
   }
 
   try {
-      const response = await API.post('/api/formatting/apply', {
+      const response = await API.post('/api/formatting/apply/', {
           fileName,
           sheet,
           formattingConfig
@@ -885,7 +885,7 @@ export const applyFormatting = async (fileName, sheet, formattingConfig) => {
 // Visualization endpoints
 export const previewVisualization = async (data, userEmail) => {
     try {
-        const response = await API.post('/api/visualization/preview', data, {
+        const response = await API.post('/api/visualization/preview/', data, {
             headers: {
                 'Content-Type': 'application/json',
                 'X-User-Email': userEmail
@@ -899,7 +899,7 @@ export const previewVisualization = async (data, userEmail) => {
 
 export const saveVisualization = async (data) => {
   try {
-      const response = await API.post('/api/visualization/save', {
+      const response = await API.post('/api/visualization/save/', {
           fileName: data.fileName,
           visualizationConfig: {
               type: data.visualizationType,
@@ -922,7 +922,7 @@ export const saveVisualization = async (data) => {
 
 export const loadVisualization = async (fileName) => {
   try {
-      const response = await API.get('/api/visualization/load', {
+      const response = await API.get('/api/visualization/load/', {
           params: { fileName }
       });
       return response.data;
@@ -933,7 +933,7 @@ export const loadVisualization = async (fileName) => {
 
 export const reconcileFiles = async (reconcileData) => {
   try {
-    const response = await API.post('/api/merge_files/reconcile', reconcileData, {
+    const response = await API.post('/api/merge_files/reconcile/', reconcileData, {
       headers: {
         'X-User-Email': localStorage.getItem('email'),
         'Content-Type': 'application/json',
@@ -948,7 +948,7 @@ export const reconcileFiles = async (reconcileData) => {
 
 export const getFileColumns = async () => {
   try {
-    const response = await API.get('/api/operations/columns');
+    const response = await API.get('/api/operations/columns/');
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -957,7 +957,7 @@ export const getFileColumns = async () => {
 
 export const performFileOperations = async (config) => {
   try {
-    const response = await API.post('/api/operations/operations', config);
+    const response = await API.post('/api/operations/operations/', config);
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -966,7 +966,7 @@ export const performFileOperations = async (config) => {
 
 export const previewFileOperations = async (config) => {
   try {
-    const response = await API.post('/api/operations/preview', config);
+    const response = await API.post('/api/operations/preview/', config);
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -980,7 +980,7 @@ export const deleteFile = async (fileName, folder) => {
   }
 
   try {
-    const response = await API.delete('/api/list-files/delete', {
+    const response = await API.delete('/api/list-files/delete/', {
       data: {
         fileName,
         folder,
