@@ -83,7 +83,7 @@ export const logout = async () => {
       }
 
       // Call the logout API
-      const response = await API.post('/api/login/logout', {}, {
+      const response = await API.post('/api/login/logout/', {}, {
           headers: {
               Authorization: `Bearer ${token}`,
           },
