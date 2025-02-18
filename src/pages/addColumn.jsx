@@ -177,10 +177,8 @@ const FileColumnOperations = () => {
     const handleAddCalculationStep = (columnIndex) => {
         const updatedColumns = [...newColumns];
         updatedColumns[columnIndex].params.push({
-            col1: "",
-            operator: "+",
-            col2: "",
-            value: null
+            operands: [{ col: "", value: null }],
+            operators: [],
         });
         setNewColumns(updatedColumns);
     };
@@ -221,6 +219,22 @@ const FileColumnOperations = () => {
     const handleRemoveCondition = (columnIndex, condIndex) => {
         const updatedColumns = [...newColumns];
         updatedColumns[columnIndex].params.splice(condIndex, 1);
+        setNewColumns(updatedColumns);
+    };
+
+    const handleAddOperand = (columnIndex, stepIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params[stepIndex].operands.push({ col: "", value: null });
+        
+        // Add a new operator for the new operand
+        updatedColumns[columnIndex].params[stepIndex].operators.push("+"); // Default operator
+        setNewColumns(updatedColumns);
+    };
+
+    const handleRemoveOperand = (columnIndex, stepIndex, operandIndex) => {
+        const updatedColumns = [...newColumns];
+        updatedColumns[columnIndex].params[stepIndex].operands.splice(operandIndex, 1);
+        updatedColumns[columnIndex].params[stepIndex].operators.splice(operandIndex - 1, 1); // Remove corresponding operator
         setNewColumns(updatedColumns);
     };
 
@@ -414,72 +428,48 @@ const FileColumnOperations = () => {
                         />
                         {column.params.map((step, stepIndex) => (
                             <Grid container spacing={2} key={stepIndex} sx={{ mb: 2 }}>
-                                <Grid item xs={4}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Column</InputLabel>
-                                        <Select
-                                            value={step.col1}
-                                            onChange={(e) => {
-                                                const updatedColumns = [...newColumns];
-                                                updatedColumns[columnIndex].params[stepIndex].col1 = e.target.value;
-                                                setNewColumns(updatedColumns);
-                                            }}
-                                        >
-                                            {columns.map((col) => (
-                                                <MenuItem key={col} value={col}>{col}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={2}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Operator</InputLabel>
-                                        <Select
-                                            value={step.operator}
-                                            onChange={(e) => {
-                                                const updatedColumns = [...newColumns];
-                                                updatedColumns[columnIndex].params[stepIndex].operator = e.target.value;
-                                                setNewColumns(updatedColumns);
-                                            }}
-                                        >
-                                            {["+", "-", "*", "/"].map((op) => (
-                                                <MenuItem key={op} value={op}>{op}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={4}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Other Column or Fixed Value</InputLabel>
-                                        <Select
-                                            value={step.col2}
-                                            onChange={(e) => {
-                                                const updatedColumns = [...newColumns];
-                                                updatedColumns[columnIndex].params[stepIndex].col2 = e.target.value;
-                                                setNewColumns(updatedColumns);
-                                            }}
-                                        >
-                                            {[...columns, "Fixed Value"].map((col) => (
-                                                <MenuItem key={col} value={col}>{col}</MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                {step.col2 === "Fixed Value" && (
-                                    <Grid item xs={2}>
-                                        <TextField
-                                            fullWidth
-                                            type="number"
-                                            label="Value"
-                                            value={step.value || ""}
-                                            onChange={(e) => {
-                                                const updatedColumns = [...newColumns];
-                                                updatedColumns[columnIndex].params[stepIndex].value = parseFloat(e.target.value);
-                                                setNewColumns(updatedColumns);
-                                            }}
-                                        />
+                                {step.operands.map((operand, operandIndex) => (
+                                    <Grid item xs={12} key={operandIndex}>
+                                        <Grid container spacing={1}>
+                                            <Grid item xs={10}>
+                                                <FormControl fullWidth>
+                                                    <InputLabel>Column</InputLabel>
+                                                    <Select
+                                                        value={operand.col}
+                                                        onChange={(e) => {
+                                                            const updatedColumns = [...newColumns];
+                                                            updatedColumns[columnIndex].params[stepIndex].operands[operandIndex].col = e.target.value;
+                                                            setNewColumns(updatedColumns);
+                                                        }}
+                                                    >
+                                                        {columns.map((col) => (
+                                                            <MenuItem key={col} value={col}>{col}</MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </Grid>
+                                            {operandIndex < step.operands.length - 1 && (
+                                                <Grid item xs={2}>
+                                                    <FormControl fullWidth>
+                                                        <InputLabel>Operator</InputLabel>
+                                                        <Select
+                                                            value={step.operators[operandIndex] || "+"}
+                                                            onChange={(e) => {
+                                                                const updatedColumns = [...newColumns];
+                                                                updatedColumns[columnIndex].params[stepIndex].operators[operandIndex] = e.target.value;
+                                                                setNewColumns(updatedColumns);
+                                                            }}
+                                                        >
+                                                            {["+", "-", "*", "/"].map((op) => (
+                                                                <MenuItem key={op} value={op}>{op}</MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                </Grid>
+                                            )}
+                                        </Grid>
                                     </Grid>
-                                )}
+                                ))}
                                 <Grid item xs={1}>
                                     <IconButton 
                                         onClick={() => handleRemoveCalculationStep(columnIndex, stepIndex)}
@@ -488,6 +478,16 @@ const FileColumnOperations = () => {
                                         title="Remove calculation step"
                                     >
                                         <RemoveStepIcon />
+                                    </IconButton>
+                                </Grid>
+                                <Grid item xs={1}>
+                                    <IconButton 
+                                        onClick={() => handleAddOperand(columnIndex, stepIndex)}
+                                        color="primary"
+                                        aria-label="Add operand"
+                                        title="Add operand"
+                                    >
+                                        <AddIcon />
                                     </IconButton>
                                 </Grid>
                             </Grid>

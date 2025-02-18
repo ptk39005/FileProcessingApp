@@ -468,7 +468,7 @@ const resetConfiguration = () => {
     );
   };
 
-  // Update key selection UI
+  // Update Key Selection Section to fetch columns after file details are fetched
   const KeySelectionSection = () => {
     const file1 = selectedFiles[0];
     const file2 = selectedFiles[1] || file1;
@@ -477,6 +477,7 @@ const resetConfiguration = () => {
       return fileDetails[fileName]?.[sheetName]?.columns || [];
     };
 
+    // Fetch columns for the selected sheets
     const file1Columns = getColumnsForFile(file1.fileName, verticalSheets.sheet1);
     const file2Columns = getColumnsForFile(file2.fileName, verticalSheets.sheet2);
 

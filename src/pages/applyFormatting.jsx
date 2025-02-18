@@ -30,10 +30,7 @@ import {
     TableHead,
     TableBody,
     TableRow,
-    TableCell,
-    Card,
-    CardContent,
-    CardActions
+    TableCell
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import NavigationBar from '../components/NavigationBar';
@@ -43,7 +40,6 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PreviewIcon from '@mui/icons-material/Preview';
 import { previewFormatting, applyFormatting } from "../services/api";
 import { reconcileFiles } from "../services/api";
-import PreviewComponent from "../components/PreviewComponent";
 
 const ApplyFormatting = () => {
     // File and Sheet Selection States
@@ -71,8 +67,9 @@ const ApplyFormatting = () => {
     const [falseFormat, setFalseFormat] = useState('');
 
     // Preview States
-    const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
     const [previewData, setPreviewData] = useState(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const [downloadFormat, setDownloadFormat] = useState('xlsx');
 
     const { enqueueSnackbar } = useSnackbar();
@@ -88,7 +85,7 @@ const ApplyFormatting = () => {
                 const response = await getUserFiles();
                 setFiles(response.files || []);
             } catch (error) {
-                addNotification("error", "Unable to load your files. Please try again later.");
+                addNotification("error", "Failed to fetch files");
             }
         };
         fetchFiles();
@@ -118,10 +115,10 @@ const ApplyFormatting = () => {
                     const fileExtension = details.fileName.split(".").pop();
                     setNewFileName(`${baseFileName}_Formatted.${fileExtension}`);
 
-                    addNotification("success", `Successfully loaded details for ${details.fileName}`);
+                    addNotification("success", "File details loaded successfully");
                 } catch (error) {
                     console.error("Error fetching file details:", error);
-                    addNotification("error", "Unable to load file details. Please ensure the file is accessible.");
+                    addNotification("error", "Failed to fetch file details");
                 } finally {
                     setIsLoading(false);
                 }
@@ -133,7 +130,7 @@ const ApplyFormatting = () => {
 
     const handleFileSelection = (file) => {
         setSelectedFile(file);
-        addNotification("success", `Selected file: ${file.fileName}`);
+        addNotification("success", "File selected successfully");
     };
 
     const filteredFiles = files.filter(file => 
@@ -142,7 +139,7 @@ const ApplyFormatting = () => {
 
     const handlePreview = async () => {
         if (!selectedFile) {
-            addNotification('warning', 'Please select a file before generating a preview');
+            addNotification('warning', 'Please select a file first');
             return;
         }
     
@@ -177,25 +174,15 @@ const ApplyFormatting = () => {
             );
             
             if (response.success) {
-                // Transform the data to match PreviewComponent structure
-                const transformedData = {
-                    rows: response.data.map(row => row.values),
-                    columns: Object.keys(response.data[0]?.values || {})
-                };
-                
-                setPreviewData([{
-                    sheetName: "Formatting Preview",
-                    rows: transformedData.rows,
-                    columns: transformedData.columns
-                }]);
-                setPreviewDialogOpen(true);
-                addNotification('success', 'Preview generated successfully. You can now review the changes.');
+                setPreviewData(response.data);
+                setPreviewOpen(true);
+                addNotification('success', 'Preview generated successfully');
             } else {
-                addNotification('error', response.error || 'Unable to generate preview. Please check your formatting settings.');
+                addNotification('error', response.error || 'Failed to generate preview');
             }
         } catch (error) {
             console.error('Preview error:', error);
-            addNotification('error', 'Failed to generate preview. Please try again or contact support if the issue persists.');
+            addNotification('error', error.message || 'Failed to generate preview');
         } finally {
             setIsLoading(false);
         }
@@ -203,7 +190,7 @@ const ApplyFormatting = () => {
     
     const handleSubmit = async () => {
         if (!selectedFile) {
-            addNotification('warning', 'Please select a file before applying formatting');
+            addNotification('warning', 'Please select a file first');
             return;
         }
     
@@ -239,8 +226,8 @@ const ApplyFormatting = () => {
             );
     
             if (response.success) {
-                addNotification('success', 'Formatting applied successfully. Your download will begin shortly.');
-                setPreviewDialogOpen(false);
+                addNotification('success', 'Formatting applied successfully');
+                setPreviewOpen(false);
                 setPreviewData(null);
                 
                 if (response.downloadUrl) {
@@ -251,11 +238,11 @@ const ApplyFormatting = () => {
                 const filesResponse = await getUserFiles();
                 setFiles(filesResponse.files || []);
             } else {
-                addNotification('error', response.error || 'Unable to apply formatting. Please check your settings and try again.');
+                addNotification('error', response.error || 'Failed to apply formatting');
             }
         } catch (error) {
             console.error('Apply formatting error:', error);
-            addNotification('error', 'Failed to apply formatting. Please try again or contact support if the issue persists.');
+            addNotification('error', error.message || 'Failed to apply formatting');
         } finally {
             setIsLoading(false);
         }
@@ -368,36 +355,136 @@ const ApplyFormatting = () => {
         }
     };
 
+    const PreviewDialog = () => {
+        const renderCell = (value, formatting, columnIndex) => {
+            if (!formatting || !formatting.affected_columns.includes(columnIndex)) {
+                return value;
+            }
+
+            let style = {};
+            
+            switch (formatting.type) {
+                case 'font':
+                    style = { color: formatting.color };
+                    break;
+                case 'fill':
+                    style = { backgroundColor: formatting.color };
+                    break;
+                case 'conditional':
+                    const cellValue = String(value).toLowerCase();
+                    const compareValue = String(formatting.value).toLowerCase();
+                    let matches = false;
+
+                    switch (formatting.operator) {
+                        case 'equals':
+                            matches = cellValue === compareValue;
+                            break;
+                        case 'does not equal':
+                            matches = cellValue !== compareValue;
+                            break;
+                        case 'contains':
+                            matches = cellValue.includes(compareValue);
+                            break;
+                        case 'does not contain':
+                            matches = !cellValue.includes(compareValue);
+                            break;
+                        // Add other operators as needed
+                    }
+                    style = { 
+                        backgroundColor: matches ? formatting.trueColor : formatting.falseColor 
+                    };
+                    break;
+                case 'number':
+                    // Handle number formatting if needed
+                    break;
+                case 'width':
+                    style = { width: `${formatting.width}px` };
+                    break;
+                default:
+                    break;
+            }
+
+            return <span style={style}>{value}</span>;
+        };
+
+        return (
+            <Dialog 
+                open={previewOpen} 
+                onClose={() => setPreviewOpen(false)}
+                maxWidth="lg"
+                fullWidth
+            >
+                <DialogTitle>Preview Results</DialogTitle>
+                <DialogContent>
+                    {previewData && (
+                        <TableContainer component={Paper}>
+                            <Table>
+                                <TableHead>
+                                    <TableRow>
+                                        {Object.keys(previewData[0]?.values || {}).map((key, index) => (
+                                            <TableCell 
+                                                key={key}
+                                                style={
+                                                    previewData[0]?.formatting?.type === 'width' &&
+                                                    previewData[0]?.formatting?.affected_columns.includes(index)
+                                                        ? { width: `${previewData[0].formatting.width}px` }
+                                                        : {}
+                                                }
+                                            >
+                                                {key}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {previewData.map((row, rowIndex) => (
+                                        <TableRow key={rowIndex}>
+                                            {Object.entries(row.values).map(([key, value], columnIndex) => (
+                                                <TableCell key={`${rowIndex}-${key}`}>
+                                                    {renderCell(value, row.formatting, columnIndex)}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <FormControl sx={{ m: 1, minWidth: 120 }}>
+                        <InputLabel>Format</InputLabel>
+                        <Select
+                            value={downloadFormat}
+                            onChange={(e) => setDownloadFormat(e.target.value)}
+                            size="small"
+                        >
+                            <MenuItem value="xlsx">Excel (.xlsx)</MenuItem>
+                            <MenuItem value="csv">CSV (.csv)</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <Button onClick={() => setPreviewOpen(false)}>Close</Button>
+                    <Button 
+                        variant="contained" 
+                        startIcon={<DownloadIcon />}
+                        onClick={handleSubmit}
+                        disabled={isLoading}
+                    >
+                        Apply & Download
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        );
+    };
+
     return (
         <NavigationBar>
-            <Container maxWidth="md" sx={{ py: 4 }}>
-                {isLoading && (
-                    <Box
-                        sx={{
-                            position: "fixed",
-                            top: 10,
-                            right: 10,
-                            zIndex: 2000,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                        }}
-                    >
-                        <CircularProgress size={30} />
-                        <Typography variant="body2">Processing...</Typography>
-                    </Box>
-                )}
-
-                <Typography variant="h4" gutterBottom sx={{ 
-                    textAlign: "center", 
-                    mb: 4,
-                    color: '#2C3E50'
-                }}>
-                    Apply Formatting
-                </Typography>
-
-                {/* Search Bar */}
-                <Box sx={{ display: "flex", alignItems: "center", marginBottom: 3 }}>
+            <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+                {/* File Selection Section */}
+                <Paper elevation={3} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Select File
+                    </Typography>
                     <TextField
                         fullWidth
                         placeholder="Search files..."
@@ -411,77 +498,54 @@ const ApplyFormatting = () => {
                                 </InputAdornment>
                             ),
                         }}
-                        sx={{ 
-                            marginRight: 2,
-                            '& .MuiOutlinedInput-root': {
-                                '&:hover fieldset': {
-                                    borderColor: '#B82132',
-                                },
-                                '&.Mui-focused fieldset': {
-                                    borderColor: '#B82132',
-                                },
-                            },
-                        }}
+                        sx={{ mb: 2 }}
                     />
-                </Box>
 
-                {/* File Selection Paper */}
-                <Paper elevation={3} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Select File
-                    </Typography>
-                    
                     {isLoading ? (
-                        <Box sx={{ textAlign: "center", marginY: 4 }}>
+                        <Box display="flex" justifyContent="center" p={3}>
                             <CircularProgress />
                         </Box>
                     ) : (
-                        <Grid container spacing={3}>
+                        <List>
                             {filteredFiles.map((file, index) => (
-                                <Grid item xs={12} sm={6} md={4} key={index}>
-                                    <Card sx={{ height: "100%" }}>
-                                        <CardContent>
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                                <Checkbox
-                                                    checked={selectedFile?.fileName === file.fileName}
-                                                    onChange={() => handleFileSelection(file)}
+                                <React.Fragment key={file.fileName || `file-${index}`}>
+                                    <ListItem sx={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                    }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                            <Checkbox
+                                                checked={selectedFile?.fileName === file.fileName}
+                                                onChange={() => handleFileSelection(file)}
+                                            />
+                                            <Tooltip title={file.fileName} arrow>
+                                                <Typography
+                                                    variant="body1"
                                                     sx={{
-                                                        color: "#B82132",
-                                                        '&.Mui-checked': {
-                                                            color: "#B82132",
-                                                        },
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        maxWidth: "300px",
                                                     }}
-                                                />
-                                                <Tooltip title={file.fileName}>
-                                                    <Typography
-                                                        variant="h6"
-                                                        noWrap
-                                                        sx={{ textOverflow: "ellipsis", overflow: "hidden" }}
-                                                    >
-                                                        {file.fileName}
-                                                    </Typography>
-                                                </Tooltip>
-                                            </Box>
-                                            <Typography variant="body2" color="textSecondary">
-                                                Uploaded: {new Date(file.uploadTime).toLocaleString()}
-                                            </Typography>
-                                        </CardContent>
-                                        <CardActions>
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
-                                                color="secondary"
-                                                href={file.downloadUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                Download
-                                            </Button>
-                                        </CardActions>
-                                    </Card>
-                                </Grid>
+                                                >
+                                                    {file.fileName}
+                                                </Typography>
+                                            </Tooltip>
+                                        </Box>
+                                        <Button
+                                            variant="outlined"
+                                            href={file.downloadUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Download
+                                        </Button>
+                                    </ListItem>
+                                    <Divider />
+                                </React.Fragment>
                             ))}
-                        </Grid>
+                        </List>
                     )}
                 </Paper>
 
@@ -586,7 +650,7 @@ const ApplyFormatting = () => {
 
                         {renderFormattingOptions()}
 
-                        <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
+                        <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                             <Button
                                 variant="outlined"
                                 onClick={handlePreview}
@@ -600,12 +664,6 @@ const ApplyFormatting = () => {
                                 onClick={handleSubmit}
                                 disabled={isLoading}
                                 startIcon={<DownloadIcon />}
-                                sx={{
-                                    backgroundColor: '#B82132',
-                                    '&:hover': {
-                                        backgroundColor: '#8E1A28',
-                                    },
-                                }}
                             >
                                 Apply & Download
                             </Button>
@@ -613,13 +671,7 @@ const ApplyFormatting = () => {
                     </Paper>
                 )}
 
-                {previewDialogOpen && previewData && (
-                    <PreviewComponent
-                        previewData={previewData}
-                        open={previewDialogOpen}
-                        onClose={() => setPreviewDialogOpen(false)}
-                    />
-                )}
+                <PreviewDialog />
             </Container>
         </NavigationBar>
     );
