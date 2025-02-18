@@ -107,6 +107,11 @@ useEffect(() => {
           [file1.fileName]: details1?.sheets || { CSV: { columns: details1?.columns || [] } },
           [file2.fileName]: details2?.sheets || { CSV: { columns: details2?.columns || [] } }
         });
+
+        console.log("File Details:", {
+          [file1.fileName]: details1?.sheets,
+          [file2.fileName]: details2?.sheets
+        });
       } catch (error) {
         console.error("Error fetching file details:", error);
         addNotification("error", error.message || "Failed to fetch file details.");
@@ -474,13 +479,14 @@ const resetConfiguration = () => {
     const file2 = selectedFiles[1] || file1;
 
     const getColumnsForFile = (fileName, sheetName) => {
-      // Access the columns directly from the fileDetails state
       return fileDetails[fileName]?.[sheetName]?.columns || [];
     };
 
-    // Fetch columns for the selected sheets
     const file1Columns = getColumnsForFile(file1.fileName, verticalSheets.sheet1);
     const file2Columns = getColumnsForFile(file2.fileName, verticalSheets.sheet2);
+
+    console.log("File 1 Columns:", file1Columns);
+    console.log("File 2 Columns:", file2Columns);
 
     return mergeKeys.map((keyPair, index) => (
       <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2 }}>
