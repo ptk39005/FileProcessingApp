@@ -95,23 +95,19 @@ useEffect(() => {
     if (selectedFiles.length > 0) {
       setIsLoading(true);
       try {
-        const file1 = selectedFiles[0];
-        const file2 = selectedFiles[1] || file1;
-
-        const [details1, details2] = await Promise.all([
-          getFileDetails(file1.fileName),
-          getFileDetails(file2.fileName)
-        ]);
-
-        setFileDetails({
-          [file1.fileName]: details1?.sheets || { CSV: { columns: details1?.columns || [] } },
-          [file2.fileName]: details2?.sheets || { CSV: { columns: details2?.columns || [] } }
+        const detailsPromises = selectedFiles.map(file => 
+          getFileDetails(file.fileName)
+        );
+        
+        const details = await Promise.all(detailsPromises);
+        
+        const newFileDetails = {};
+        selectedFiles.forEach((file, index) => {
+          newFileDetails[file.fileName] = details[index]?.sheets || 
+            { CSV: { columns: details[index]?.columns || [] } };
         });
 
-        console.log("File Details:", {
-          [file1.fileName]: details1?.sheets,
-          [file2.fileName]: details2?.sheets
-        });
+        setFileDetails(newFileDetails);
       } catch (error) {
         console.error("Error fetching file details:", error);
         addNotification("error", error.message || "Failed to fetch file details.");
@@ -169,38 +165,10 @@ const handleVerticalSheetChange = (fileIndex, sheet) => {
     const file1 = selectedFiles[0];
     const file2 = selectedFiles[1] || file1;
 
-    // If same file is selected (either explicitly or due to single file selection)
-    if (file1.fileName === file2.fileName) {
-      if (newSheets.sheet1 === newSheets.sheet2) {
-        addNotification("error", "Please select different sheets when using the same file.");
-        return prev;
-      }
+    if (file1.fileName === file2.fileName && newSheets.sheet1 === newSheets.sheet2) {
+      addNotification("error", "Please select different sheets when using the same file.");
+      return prev;
     }
-
-    // Always fetch details for both sheets
-    Promise.all([
-      getFileDetails(file1.fileName, newSheets.sheet1),
-      getFileDetails(file2.fileName, newSheets.sheet2)
-    ]).then(([details1, details2]) => {
-      setFileDetails(prevDetails => ({
-        ...prevDetails,
-        [file1.fileName]: {
-          ...prevDetails[file1.fileName],
-          [newSheets.sheet1]: {
-            columns: details1?.columns || []
-          }
-        },
-        [file2.fileName]: {
-          ...prevDetails[file2.fileName],
-          [newSheets.sheet2]: {
-            columns: details2?.columns || []
-          }
-        }
-      }));
-    }).catch(error => {
-      console.error("Error fetching sheet columns:", error);
-      addNotification("error", "Failed to fetch column details.");
-    });
 
     return newSheets;
   });
