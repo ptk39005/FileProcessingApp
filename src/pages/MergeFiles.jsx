@@ -474,6 +474,7 @@ const resetConfiguration = () => {
     const file2 = selectedFiles[1] || file1;
 
     const getColumnsForFile = (fileName, sheetName) => {
+      // Access the columns directly from the fileDetails state
       return fileDetails[fileName]?.[sheetName]?.columns || [];
     };
 
